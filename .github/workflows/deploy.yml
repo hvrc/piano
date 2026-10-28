@@ -39,8 +39,10 @@ jobs:
           pnpm typecheck
           pnpm test
 
-      - uses: google-github-actions/auth@v2
+      - id: auth
+        uses: google-github-actions/auth@v2
         with:
+          token_format: access_token
           workload_identity_provider: projects/883511463333/locations/global/workloadIdentityPools/github/providers/github
           service_account: piano-deployer@hvrc-web.iam.gserviceaccount.com
 
@@ -48,7 +50,7 @@ jobs:
 
       - name: Build and push image
         run: |
-          gcloud auth configure-docker us-east1-docker.pkg.dev --quiet
+          echo "${{ steps.auth.outputs.access_token }}" | docker login -u oauth2accesstoken --password-stdin https://us-east1-docker.pkg.dev
           docker build -t "$IMAGE:$GITHUB_SHA" .
           docker push "$IMAGE:$GITHUB_SHA"
 
