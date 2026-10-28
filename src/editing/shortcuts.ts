@@ -66,7 +66,12 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
       }
       case 'z': if (e.shiftKey) store.redo(); else store.undo(); return true;
       case 'y': store.redo(); return true;
-      case 'l': loopSelection(store); return true;
+      case 'l':
+        if (e.shiftKey) cmd.legatoNotes(store);
+        else loopSelection(store);
+        return true;
+      case 'ArrowUp': cmd.changeVelocity(store, 10); return true;
+      case 'ArrowDown': cmd.changeVelocity(store, -10); return true;
     }
   }
 

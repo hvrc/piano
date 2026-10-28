@@ -55,7 +55,18 @@
           <select id="grid"></select>
         </label>
         <button id="btn-triplet" class="toggle text" title="Triplet grid (3)">3</button>
-        <button id="btn-snap" class="toggle text" title="Snap to grid (4). Hold ⌘ while dragging to bypass.">Snap</button>
+        <button id="btn-boneless" class="toggle text" title="Boneless (4): nothing snaps to the grid — notes go exactly where you put them">Boneless</button>
+        <span class="sep"></span>
+        <button id="btn-legato" class="text" title="Legato (⇧⌘L): stretch each note to the start of the next. Uses the selection, or all notes.">Legato</button>
+        <div class="pop-wrap">
+          <button id="btn-humanize" class="text" title="Humanize: nudge notes slightly earlier or later at random">Humanize</button>
+          <div id="humanize-pop" class="pop" hidden>
+            <label>Timing <input id="hum-timing" type="range" min="0" max="60" step="1" /> <output id="hum-timing-out"></output></label>
+            <label>Velocity <input id="hum-velocity" type="range" min="0" max="40" step="1" /> <output id="hum-velocity-out"></output></label>
+            <p>Works on the selected notes, or all notes if none are selected. Press again for another random nudge; ⌘Z undoes.</p>
+            <button id="hum-apply" class="text primary">Humanize</button>
+          </div>
+        </div>
         <span class="sep"></span>
         <span id="status" class="status"></span>
         <button id="btn-help" class="icon" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
@@ -109,7 +120,10 @@
             <dt>⌫</dt><dd>Delete</dd>
             <dt>⌘Z / ⇧⌘Z</dt><dd>Undo / redo</dd>
             <dt>1 / 2</dt><dd>Narrow / widen grid</dd>
-            <dt>3 / 4</dt><dd>Triplets / snap on-off</dd>
+            <dt>3 / 4</dt><dd>Triplets / Boneless (no snapping) on-off</dd>
+            <dt>⌘↑ ⌘↓</dt><dd>Velocity ±10 for selected notes</dd>
+            <dt>Velocity lane</dt><dd>Drag stems; in draw mode, sweep to paint</dd>
+            <dt>⇧⌘L</dt><dd>Legato</dd>
             <dt>⌘ scroll, pinch, + −</dt><dd>Zoom time</dd>
             <dt>⌥ scroll</dt><dd>Zoom key height</dd>
             <dt>Drag lower ruler</dt><dd>↕ zoom, ↔ scroll</dd>

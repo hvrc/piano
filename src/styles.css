@@ -255,3 +255,26 @@ button.danger:hover { background: #b9443f; }
 dl { display: grid; grid-template-columns: auto auto; gap: 7px 16px; margin: 0; }
 dt { color: var(--accent); white-space: nowrap; font-variant-numeric: tabular-nums; }
 dd { margin: 0; color: var(--text); }
+
+/* Humanize popover */
+.pop-wrap { position: relative; }
+.pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 15;
+  width: 250px;
+  padding: 12px 14px;
+  background: #3a4144;
+  border: 1px solid #2a3033;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  display: grid;
+  gap: 10px;
+}
+.pop[hidden] { display: none; }
+.pop label { display: grid; grid-template-columns: 58px 1fr 52px; align-items: center; gap: 8px; color: var(--text-dim); }
+.pop input[type='range'] { width: 100%; accent-color: var(--accent); }
+.pop output { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
+.pop p { margin: 0; font-size: 11px; line-height: 1.45; color: var(--text-dim); }
+.pop .primary { justify-self: end; padding: 0 12px; }

@@ -26,7 +26,7 @@ export function mountTransportBar(
   const draw = $<HTMLButtonElement>('btn-draw');
   const grid = $<HTMLSelectElement>('grid');
   const triplet = $<HTMLButtonElement>('btn-triplet');
-  const snap = $<HTMLButtonElement>('btn-snap');
+  const boneless = $<HTMLButtonElement>('btn-boneless');
   const status = $<HTMLSpanElement>('status');
   const help = $<HTMLButtonElement>('btn-help');
   const keys = $<HTMLButtonElement>('btn-keys');
@@ -49,7 +49,7 @@ export function mountTransportBar(
   draw.addEventListener('click', () => store.setDrawMode(!store.drawMode));
   loop.addEventListener('click', () => store.setLoop({ enabled: !store.loop.enabled }));
   triplet.addEventListener('click', () => store.setGrid({ triplet: !store.grid.triplet }));
-  snap.addEventListener('click', () => store.setGrid({ snap: !store.grid.snap }));
+  boneless.addEventListener('click', () => store.setGrid({ snap: !store.grid.snap }));
   help.addEventListener('click', opts.onHelp);
   keys.addEventListener('click', opts.onKeys);
 
@@ -115,7 +115,7 @@ export function mountTransportBar(
     loop.classList.toggle('on', store.loop.enabled);
     grid.value = String(store.grid.division);
     triplet.classList.toggle('on', store.grid.triplet);
-    snap.classList.toggle('on', store.grid.snap);
+    boneless.classList.toggle('on', !store.grid.snap);
     const kb = store.keyboard;
     keys.classList.toggle('on', kb.enabled);
     keysInfo.textContent = kb.enabled ? `${pitchName(kb.base)} · ${kb.velocity}` : '';

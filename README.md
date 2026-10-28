@@ -25,7 +25,11 @@ Press `?` (or the ? button) in the app to see every shortcut.
 | Copy | ⌥-drag. Pressing or releasing ⌥ mid-drag switches between move and copy |
 | Resize | Drag a note's left or right edge |
 | Keyboard edits | ↑↓ semitone, ⇧↑↓ octave, ←→ move by grid, ⇧←→ change length, ⌘D duplicate, ⌘C/X/V (paste at the playhead), ⌫ delete, ⌘Z / ⇧⌘Z |
-| Grid | ⌘1/⌘2 narrow/widen, ⌘3 triplets, ⌘4 snap. Chrome reserves ⌘+digit, so plain `1`–`4` also work |
+| Boneless | The **Boneless** button (or `4`) turns all snapping off. Notes are drawn, moved and resized exactly where you put them, and so are the loop brace and seeking. In draw mode a click places a note right under the mouse, and dragging paints a new note each time you travel one grid length. Holding ⌘ while dragging is a one-off Boneless |
+| Velocity | The lane under the notes shows one stem per note (height = velocity, 1–127). Drag a stem to change it; if it's selected, all selected notes move together. In draw mode, sweep across the lane to paint velocities. ⌘↑/⌘↓ change the selection by ±10. Note colour also follows velocity, and playback uses it |
+| Legato | **Legato** (`⇧⌘L`) stretches each note to end exactly where the next one starts (chords move together; the last note keeps its length), as in Live. Works on the selection, or all notes |
+| Humanize | **Humanize** opens a small panel: Timing (±ms, default 15) nudges each note randomly earlier or later, keeping its length, and Velocity (±) adds random velocity variation. Nudges are weighted towards small values. Works on the selection, or all notes. Press again for another nudge; ⌘Z undoes |
+| Grid | ⌘1/⌘2 narrow/widen, ⌘3 triplets, ⌘4 Boneless. Chrome reserves ⌘+digit, so plain `1`–`4` also work |
 | Audition | Click or drag on the keyboard. ⇧-click a key selects all notes of that pitch |
 | Navigate | Scroll / ⇧-scroll; ⌘-scroll or pinch zooms time; ⌥-scroll zooms key height; `+`/`−`; PageUp/PageDown move an octave |
 | Ruler | Upper strip: click or drag to move the playhead. Lower strip: drag ↕ to zoom, ↔ to scroll, click to move the playhead |
@@ -118,4 +122,4 @@ Then copy `.github/workflows/deploy.yml`.
 
 ## Not built (on purpose)
 
-Multiple tracks/instruments, mixer, recording, effects, MIDI hardware input, velocity lanes, automation, accounts, and anything else from a full DAW.
+Multiple tracks/instruments, mixer, recording, effects, MIDI hardware input, automation, accounts, and anything else from a full DAW.

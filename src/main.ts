@@ -17,6 +17,7 @@ import { ComputerKeyboard } from './input/computerKeyboard';
 import { Session } from './library/session';
 import { mountFileBar } from './ui/fileBar';
 import { mountSidebar } from './ui/sidebar';
+import { mountTools } from './ui/tools';
 
 const MIN_BARS = 32;
 const TAIL_BARS = 16; // empty room to keep composing past the last note
@@ -74,6 +75,7 @@ const bar = mountTransportBar(store, transport, {
 });
 const fileBar = mountFileBar(session, { onToggleSidebar: toggleSidebar });
 mountSidebar(session);
+mountTools(store);
 installShortcuts({
   store,
   transport,

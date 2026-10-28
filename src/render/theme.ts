@@ -45,6 +45,11 @@ export const C = {
 
   hint: 'rgba(20,24,26,0.5)',
 
+  velLane: '#4f575a',
+  velGuide: 'rgba(0,0,0,0.16)',
+  velLabel: '#aab3b6',
+  velValue: '#ffffff',
+
   loopLane: '#454d50',
   loopOn: '#ffa21c',
   loopOnEdge: '#ffd08a',

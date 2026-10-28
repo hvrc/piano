@@ -3,6 +3,7 @@ import { clampPitch, MAX_PITCH, MIN_PITCH } from '../music/pitch';
 import { noteEnd, type Note } from '../model/note';
 import type { Store } from '../state/store';
 import { BEATS_PER_BAR, EPS, gridStep } from '../timeline/grid';
+import { humanize, legato, type HumanizeOptions } from './transforms';
 
 let clipboard: Note[] = [];
 
@@ -89,4 +90,30 @@ export function paste(store: Store, at: number): number | null {
 function updateSelected(store: Store, fn: (n: Note) => Note): void {
   store.checkpoint();
   store.setNotes(store.notes.map((n) => (store.selection.has(n.id) ? fn(n) : n)));
+}
+
+/** Selected notes, or every note when nothing is selected. Returns the ids acted on. */
+function targets(store: Store): Set<number> {
+  return new Set(store.selection.size ? store.selection : store.notes.map((n) => n.id));
+}
+
+function replaceTargets(store: Store, ids: Set<number>, fn: (notes: Note[]) => Note[]): void {
+  const chosen = store.notes.filter((n) => ids.has(n.id));
+  if (!chosen.length) return;
+  const updated = new Map(fn(chosen).map((n) => [n.id, n]));
+  store.checkpoint();
+  store.setNotes(store.notes.map((n) => updated.get(n.id) ?? n));
+}
+
+export function humanizeNotes(store: Store, opts: HumanizeOptions): void {
+  replaceTargets(store, targets(store), (notes) => humanize(notes, store.bpm, opts));
+}
+
+export function legatoNotes(store: Store): void {
+  replaceTargets(store, targets(store), legato);
+}
+
+export function changeVelocity(store: Store, delta: number): void {
+  if (!store.selection.size) return;
+  updateSelected(store, (n) => ({ ...n, velocity: Math.max(1, Math.min(127, n.velocity + delta)) }));
 }

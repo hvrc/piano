@@ -4,7 +4,7 @@ import { isBlackKey, pitchName, MAX_PITCH, MIN_PITCH } from '../music/pitch';
 import type { Store } from '../state/store';
 import { BEATS_PER_BAR, gridStep, isMultiple } from '../timeline/grid';
 import type { Viewport } from '../timeline/viewport';
-import { KEYS_W, LABEL_W, LOOP_H, RULER_H, SCRUB_H } from './layout';
+import { KEYS_W, LABEL_W, LOOP_H, RULER_H, SCRUB_H, VEL_H, velocityToY } from './layout';
 import type { Overlay } from './overlay';
 import { C, FONT, noteFill } from './theme';
 import { KEYBOARD_SPAN } from '../input/computerKeyboard';
@@ -36,7 +36,7 @@ export class Renderer {
     this.canvas.height = Math.round(this.cssH * this.dpr);
     this.canvas.style.width = `${this.cssW}px`;
     this.canvas.style.height = `${this.cssH}px`;
-    this.vp.setSize(this.cssW - KEYS_W, this.cssH - RULER_H);
+    this.vp.setSize(this.cssW - KEYS_W, this.cssH - RULER_H - VEL_H);
   }
 
   render(): void {
@@ -51,6 +51,7 @@ export class Renderer {
     this.drawGridOverlays();
     this.drawRuler();
     this.drawKeys(active);
+    this.drawVelocity();
     this.drawCorner();
   }
 
@@ -321,6 +322,80 @@ export class Renderer {
       this.vline(px, SCRUB_H - 1, RULER_H_BELOW_LOOP - SCRUB_H, store.playing ? C.playhead : C.insertMarker);
     }
     g.restore();
+  }
+
+  // ---------------------------------------------------------------- velocity lane
+
+  private drawVelocity(): void {
+    const { g, vp, store, overlay } = this;
+    const top = this.cssH - VEL_H;
+    const H = this.cssH;
+
+    // Label column on the left.
+    g.fillStyle = C.labelColumn;
+    g.fillRect(0, top, KEYS_W, VEL_H);
+    g.fillStyle = C.velLabel;
+    g.font = `500 10px ${FONT}`;
+    g.textBaseline = 'middle';
+    g.fillText('Velocity', 6, top + VEL_H / 2);
+    g.textAlign = 'right';
+    g.fillText('127', KEYS_W - 6, velocityToY(127, H));
+    g.fillText('1', KEYS_W - 6, velocityToY(1, H));
+    g.textAlign = 'left';
+
+    this.clipTo(KEYS_W, top, vp.width, VEL_H);
+    g.translate(0, -top); // draw in canvas coordinates
+    g.fillStyle = C.velLane;
+    g.fillRect(0, top, vp.width, VEL_H);
+    for (const v of [32, 64, 96, 127]) {
+      g.fillStyle = C.velGuide;
+      g.fillRect(0, Math.round(velocityToY(v, H)), vp.width, 1);
+    }
+    const b0 = vp.xToBeat(0);
+    const b1 = vp.xToBeat(vp.width);
+    const barEvery = this.barSkip(8);
+    for (let bar = Math.floor(b0 / BEATS_PER_BAR); bar * BEATS_PER_BAR <= b1; bar++) {
+      if (bar % barEvery === 0) this.vline(vp.beatToX(bar * BEATS_PER_BAR), top, VEL_H, C.velGuide);
+    }
+
+    const base = velocityToY(0, H);
+    const draw = (selected: boolean) => {
+      for (const n of store.notes) {
+        if (store.selection.has(n.id) !== selected || n.start > b1 || n.start + n.duration < b0) continue;
+        const x = Math.round(vp.beatToX(n.start)) + 0.5;
+        const y = velocityToY(n.velocity, H);
+        const hot = overlay.velocityNote === n.id;
+        const color = selected ? C.noteSelected : noteFill(n.velocity, hot);
+        // Stem, a faint bar across the note's length, and a round head (Live's velocity editor).
+        g.fillStyle = color;
+        g.fillRect(x - 0.5, y, hot ? 2 : 1, base - y);
+        g.globalAlpha = 0.35;
+        g.fillRect(x, Math.round(y) - 1, Math.max(0, n.duration * vp.pxPerBeat - 2), 2);
+        g.globalAlpha = 1;
+        g.beginPath();
+        g.arc(x, y, hot ? 4 : 3, 0, Math.PI * 2);
+        g.fill();
+        g.strokeStyle = selected ? C.noteSelectedOutline : C.noteBorder;
+        g.lineWidth = 1;
+        g.stroke();
+        if (hot) {
+          g.fillStyle = C.velValue;
+          g.font = `600 10px ${FONT}`;
+          g.fillText(String(n.velocity), x + 7, Math.max(top + 8, y));
+        }
+      }
+    };
+    draw(false);
+    draw(true);
+
+    const px = vp.beatToX(this.playheadBeat());
+    if (px >= -1 && px <= vp.width + 1) this.vline(px, top, VEL_H, store.playing ? C.playhead : C.insertMarker);
+    g.fillStyle = C.divider;
+    g.fillRect(0, top, vp.width, 1);
+    g.restore();
+    g.fillStyle = C.divider;
+    g.fillRect(0, top, KEYS_W, 1);
+    g.fillRect(KEYS_W - 1, top, 1, VEL_H);
   }
 
   private drawLoopLane(): void {
