@@ -1,11 +1,15 @@
 # piano
 
-A single-track piano roll in the browser, modelled on Ableton Live's MIDI note editor. Draw notes, edit them, and play them back on a sampled grand piano.
+A single-track piano roll in the browser, modelled on Ableton Live's MIDI note editor. Draw notes, edit them, play them back on a sampled grand piano, play live from the computer keyboard, save tracks, and import or export MIDI.
+
+**Live:** https://piano.hvrc.place
 
 ```sh
 pnpm install
-pnpm dev        # http://localhost:5190
-pnpm build      # typecheck + production build into dist/
+pnpm dev        # http://localhost:5190 (one server: API + Vite with hot reload; tracks go in data/tracks.json)
+pnpm test       # MIDI codec + tracks API tests
+pnpm build      # typecheck (client + server) + production build into dist/
+pnpm start      # run the production server locally (needs a build)
 ```
 
 Press `?` (or the ? button) in the app to see every shortcut.
@@ -27,9 +31,17 @@ Press `?` (or the ? button) in the app to see every shortcut.
 | Ruler | Upper strip: click or drag to move the playhead. Lower strip: drag ↕ to zoom, ↔ to scroll, click to move the playhead |
 | Transport | Space plays/pauses (resumes from the paused position), Home returns to start, ←→ with nothing selected moves the playhead |
 
+| Computer keyboard | `M` (or the keyboard button) toggles it. `A W S E D F T G Y H U J K O L P ; '` play C up to the F an octave and a half above. `Z`/`X` shift the octave, `C`/`V` change velocity by 20. The orange bar beside the keys shows the playable range. It uses physical key positions, so it works on any keyboard layout |
+| Tracks | Edit the name in the top bar, then `⌘S` saves (`⇧⌘S` saves a copy). The dot means unsaved changes. The sidebar lists saved tracks: click one to open it, hover for download and delete (click delete twice). **+ New** starts an empty roll. You're asked before unsaved work is discarded |
+| MIDI | The ↓ button downloads the roll as a `.mid` file. The ↑ button (`⌘O`), or dropping a `.mid` on the window, opens one as a new unsaved roll. Format 0/1 files are read with all channels merged and GM drums dropped. Exports are format 0 at 480 PPQ with tempo, 4/4 and the Acoustic Grand program |
+
 Octave naming follows Live: MIDI 60 = **C3**, full range C-2 (0) to G8 (127).
 
 Playback follows the playhead, flipping a page when it runs off the right edge, as Live's Follow does. If you scroll away while it's playing, the view stays put until the playhead is back in sight.
+
+## Saved tracks and libraries
+
+There are no accounts. Each browser makes a random **library key** (stored in localStorage) and sends it as `X-Library-Key`. The server keeps tracks under the key's SHA-256, so a library can only be read with its key, and the database never holds the key itself. **Copy library link** in the sidebar gives a `/#library=…` URL. Opening it on another device switches that device to the same library (it asks first if the device already has tracks). Anyone with the link can edit that library, so treat it like a password. If browser data is cleared, the link is the only way back.
 
 ## Architecture
 
@@ -52,7 +64,18 @@ src/
   audio/synthPiano.ts     fallback synth while samples load or if they fail
   audio/piano.ts          picks sampled or synth
   audio/output.ts         master bus: light room reverb + compressor
-  ui/transportBar.ts      top bar
+  ui/transportBar.ts      top bar: transport, tempo, grid, keyboard toggle
+  ui/fileBar.ts           top bar: track name, save, MIDI open/download
+  ui/sidebar.ts           saved tracks list + library link
+  ui/dialog.ts            in-app confirm / error dialogs
+  input/computerKeyboard.ts  Live's computer MIDI keyboard
+  midi/smf.ts             Standard MIDI File encoder/decoder (also used by tests)
+  library/session.ts      the open document: dirty tracking, save/open/new/import/export
+  library/trackStore.ts   tracks API client + library key
+server/
+  index.ts                node:http server: /api/tracks, static dist/, Vite middleware in dev
+  store.ts                FileStore (dev) / Firestore store (prod), notes packed as a flat array
+  validate.ts             request validation and limits (10k notes per track, 1000 tracks per library)
 ```
 
 Scheduling uses the "two clocks" pattern. A 25 ms timer schedules notes about 120 ms ahead at exact `AudioContext` times. The playhead is drawn from `getOutputTimestamp()`, so it lines up with what you hear. Changing the tempo mid-play re-anchors at the last scheduled beat, so nothing already scheduled shifts.
@@ -70,6 +93,28 @@ Options for better sound later, roughly in order of effort:
 - `smplr`'s SplendidGrandPiano: multi-velocity, ready-made Web Audio loader. Check the sample licence before shipping.
 - Spitfire LABS: free, but its licence doesn't allow redistributing the samples, so it can't ship in a web app. Use it as a sound reference only.
 
+## Deployment
+
+| | |
+|---|---|
+| Service | Cloud Run `piano`, project `hvrc-web`, us-east1. Public, 0–3 instances, 512 MiB |
+| Domain | https://piano.hvrc.place (Cloud Run domain mapping; Squarespace DNS `CNAME piano → ghs.googlehosted.com`) |
+| Data | Firestore Native database `piano` (us-east1): `libraries/{sha256(key)}/tracks/{id}`. Delete protection on, point-in-time recovery 7 days, daily backups kept 7 days |
+| Auto-deploy | Push to **`release`** → GitHub Actions (`.github/workflows/deploy.yml`): typecheck + tests, Docker build, push to `us-east1-docker.pkg.dev/hvrc-web/cloud-run-source-deploy/piano:<sha>`, `gcloud run deploy` |
+| Auth for CI | Keyless, via Workload Identity Federation. Pool `github` and provider `github` only accept tokens from repositories owned by `hvrc`. Only `hvrc/piano` may impersonate `piano-deployer@hvrc-web.iam.gserviceaccount.com`, which holds `run.developer` on this service only, `iam.serviceAccountUser` on the runtime SA, and `artifactregistry.writer` on the registry |
+| Manual fallback | `./deploy.sh` (Cloud Build from source; `--map` recreates the domain mapping) |
+
+Release flow: work on `main`, then `git push origin main:release`.
+
+To give another `hvrc/*` repo the same auto-deploy, no Console steps are needed:
+
+```sh
+gcloud iam service-accounts add-iam-policy-binding <deployer-sa> --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/projects/883511463333/locations/global/workloadIdentityPools/github/attribute.repository/hvrc/<repo>"
+```
+
+Then copy `.github/workflows/deploy.yml`.
+
 ## Not built (on purpose)
 
-Multiple tracks, mixer, recording, effects, MIDI input, save/load, export, velocity lanes, automation, and anything else from a full DAW. Note that **nothing is saved**: reloading the page clears the roll.
+Multiple tracks/instruments, mixer, recording, effects, MIDI hardware input, velocity lanes, automation, accounts, and anything else from a full DAW.

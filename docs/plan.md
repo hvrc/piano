@@ -21,3 +21,9 @@
 6. **Domain.** Cloud Run domain mapping `piano.hvrc.place` (DNS already CNAMEs to ghs.googlehosted.com).
    *Test:* HTTPS loads and the API works on the domain.
 7. **Wrap-up.** README and ops notes, a live browser pass, memory.
+
+## Outcome (2026-10-28)
+
+All phases are done.
+- Tests: 9 local tests pass (MIDI codec + API); the API suite also passes against the Firestore emulator and against the live service. An exported MIDI file was checked with mido. Browser checks covered keyboard mode, save/open/new/delete, the unsaved-changes dialog, MIDI download → import round trip, bad-file errors and library links.
+- Deploy: the first release push failed at auth because it ran before WIF existed. The second failed at `docker push`: gcloud's credential helper didn't pick up the federated credentials, so the workflow now logs Docker in with a short-lived WIF access token. The third run deployed revision `piano-00002`, built from the exact commit.
