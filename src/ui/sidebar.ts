@@ -5,10 +5,8 @@ import { BEATS_PER_BAR, EPS } from '../timeline/grid';
 import { notesEnd } from '../model/note';
 import { $ } from './dom';
 
-const DOWNLOAD_ICON =
-  '<svg viewBox="0 0 16 16"><path d="M7 2h2v6.2l2.3-2.3 1.4 1.4L8 12 3.3 7.3l1.4-1.4L7 8.2zM3 13h10v1.5H3z"/></svg>';
-const DELETE_ICON =
-  '<svg viewBox="0 0 16 16"><path d="M6 2h4l.5 1H13v1.5H3V3h2.5zM4 5.5h8l-.6 8.5H4.6z"/></svg>';
+const DOWNLOAD_ICON = '<span class="msr" aria-hidden="true">download</span>';
+const DELETE_ICON = '<span class="msr" aria-hidden="true">delete</span>';
 
 export function mountSidebar(session: Session): void {
   const list = $('track-list');

@@ -13,6 +13,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.88em' font-size='88'%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=coffee,delete,description,download,edit,help,keyboard,pause,play_arrow,repeat,side_navigation,skip_previous,upload&display=block" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Bungee+Hairline&family=Ballet:opsz@16..72&display=swap" rel="stylesheet" />
   </head>
   <body>
@@ -20,7 +21,7 @@
       <div class="group">
         <div class="cluster cluster-file">
         <button id="btn-sidebar" class="icon" title="Show / hide tracks" aria-label="Toggle tracks sidebar">
-          <svg viewBox="0 0 16 16"><path d="M2 3h12v10H2zm1.5 1.5v7H6v-7zm4 0v7h5v-7z" /></svg>
+          <span class="msr" aria-hidden="true">side_navigation</span>
         </button>
         <div class="doc">
           <input id="track-name" placeholder="Untitled" spellcheck="false" autocomplete="off" aria-label="Track name" />
@@ -30,14 +31,14 @@
         </div>
         <div class="cluster">
         <button id="btn-start" class="icon" title="Return to start (Home)" aria-label="Return to start">
-          <svg viewBox="0 0 16 16"><rect x="3" y="3" width="2" height="10" /><path d="M13 3v10L6 8z" /></svg>
+          <span class="msr" aria-hidden="true">skip_previous</span>
         </button>
         <button id="btn-play" class="icon play" title="Play (Space)" aria-label="Play">
-          <svg class="i-play" viewBox="0 0 16 16"><path d="M4 2.5v11L13.5 8z" /></svg>
-          <svg class="i-pause" viewBox="0 0 16 16"><rect x="3.5" y="3" width="3" height="10" /><rect x="9.5" y="3" width="3" height="10" /></svg>
+          <span class="msr i-play" aria-hidden="true">play_arrow</span>
+          <span class="msr i-pause" aria-hidden="true">pause</span>
         </button>
         <button id="btn-loop" class="toggle icon" title="Loop (L) · ⌘L loops the selected notes" aria-label="Loop">
-          <svg viewBox="0 0 16 16"><path d="M4.5 4h6.2V2l3 3-3 3V6H4.5A1.5 1.5 0 0 0 3 7.5V9H1V7.5A3.5 3.5 0 0 1 4.5 4zm7 8H5.3v2l-3-3 3-3v2h6.2A1.5 1.5 0 0 0 13 8.5V7h2v1.5a3.5 3.5 0 0 1-3.5 3.5z" /></svg>
+          <span class="msr" aria-hidden="true">repeat</span>
         </button>
         <output id="pos" class="readout" title="Playback position (bar.beat.sixteenth)">1.1.1</output>
         <label class="tempo" title="Tempo in BPM: drag up/down, or click to type">
@@ -49,11 +50,11 @@
       <div class="group">
         <div class="cluster">
         <button id="btn-keys" class="toggle keys" title="Play notes with the computer keyboard (M)" aria-label="Computer keyboard">
-          <svg viewBox="0 0 16 16"><path d="M1.5 4h13v8h-13zM3 5.5v1.5h1.5V5.5zm2.5 0v1.5H7V5.5zm2.5 0v1.5h1.5V5.5zm2.5 0v1.5H12V5.5zM3 8v1.5h1.5V8zm2.5 0v1.5H7V8zm2.5 0v1.5h1.5V8zm2.5 0v1.5H12V8zM4.5 10.5V11h7v-.5z" /></svg>
+          <span class="msr" aria-hidden="true">keyboard</span>
           <span id="keys-info"></span>
         </button>
         <button id="btn-draw" class="toggle" title="Draw mode (B)" aria-label="Draw mode">
-          <svg viewBox="0 0 16 16"><path d="M2.5 13.5l.9-3.3 7.4-7.4 2.4 2.4-7.4 7.4z" /></svg>
+          <span class="msr" aria-hidden="true">edit</span>
         </button>
         </div>
         <div class="cluster">
@@ -79,9 +80,9 @@
         <div class="cluster">
         <span id="status" class="status"></span>
         <button id="btn-theme" class="icon" title="Theme">
-          <svg viewBox="0 0 16 16"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zm0 1.5v10a5 5 0 0 1 0-10z" /></svg>
+          <span class="msr" aria-hidden="true">description</span>
         </button>
-        <button id="btn-help" class="icon" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
+        <button id="btn-help" class="icon" title="Shortcuts (?)" aria-label="Shortcuts"><span class="msr" aria-hidden="true">help</span></button>
         </div>
       </div>
     </header>
@@ -100,11 +101,11 @@
           <span class="library-title">Midi files</span>
           <div class="library-buttons">
             <button id="btn-open" class="text" title="Open a MIDI file (⌘O) — or drop one on the window">
-              <svg viewBox="0 0 16 16"><path d="M7 14h2V7.8l2.3 2.3 1.4-1.4L8 4 3.3 8.7l1.4 1.4L7 7.8zM3 1.5h10V3H3z" /></svg>
+              <span class="msr" aria-hidden="true">upload</span>
               Open
             </button>
             <button id="btn-download" class="text" title="Download this roll as a MIDI file">
-              <svg viewBox="0 0 16 16"><path d="M7 2h2v6.2l2.3-2.3 1.4 1.4L8 12 3.3 7.3l1.4-1.4L7 8.2zM3 13h10v1.5H3z" /></svg>
+              <span class="msr" aria-hidden="true">download</span>
               Download
             </button>
           </div>

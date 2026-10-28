@@ -151,7 +151,23 @@ button {
 button.icon { width: 32px; padding: 0; }
 button:hover { background: var(--fill-hover); }
 button:active { opacity: 0.45; } /* iOS-style press: dim, don't move */
-button svg { width: 15px; height: 15px; fill: currentColor; }
+/* Google Material Symbols (Rounded), thin to match the hairline type */
+.msr {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 19px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  direction: ltr;
+  display: inline-block;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+}
+button.on .msr { font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 20; }
 button.on { background: var(--ink); color: var(--on-ink); }
 button.on:hover { background: var(--ink-hover); }
 /* A few light inks for specific switches */
@@ -235,7 +251,6 @@ select {
 }
 .dirty.show { opacity: 1; }
 
-.keys svg { width: 16px; height: 16px; }
 #keys-info:empty { display: none; }
 #keys-info { font-weight: 600; font-variant-numeric: tabular-nums; }
 
@@ -334,7 +349,7 @@ body.sidebar-hidden .sidebar { display: none; }
 .track:hover .track-actions,
 .track-actions:has(.armed) { display: inline-flex; }
 .track-action { min-width: 28px; width: auto; height: 28px; padding: 0 8px; border-radius: 8px; background: var(--fill); }
-.track-action svg { width: 12px; height: 12px; }
+.track-action .msr { font-size: 16px; }
 .track-action.armed { background: var(--red); color: var(--on-accent); }
 .side-empty { margin: 16px 14px; font: 20px/1.35 var(--serif); color: var(--ink-soft); }
 .side-empty[hidden] { display: none; }
