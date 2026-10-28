@@ -16,7 +16,7 @@ const PROD = process.env.NODE_ENV === 'production';
 const PORT = Number(process.env.PORT ?? 5190);
 const ROOT = resolve(import.meta.dirname, '..');
 const DIST = join(ROOT, 'dist');
-const MAX_BODY = 1_500_000;
+const MAX_BODY = 4_000_000; // a 20k-note track is ~1.6 MB of JSON
 const MAX_TRACKS = Number(process.env.MAX_TRACKS ?? 5000);
 const WRITES_PER_10_MIN = Number(process.env.WRITES_PER_10_MIN ?? 300);
 

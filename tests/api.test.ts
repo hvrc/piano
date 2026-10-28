@@ -113,6 +113,23 @@ test('keeps note colours, and rejects malformed ones', async () => {
   await call('DELETE', `/api/tracks/${id}`);
 });
 
+test('saves a full 20,000-note track with colours', async () => {
+  const id = randomUUID();
+  const notes = Array.from({ length: 20_000 }, (_, i) => ({
+    pitch: 21 + (i % 88),
+    start: i / 3, // thirds of a beat: full float precision
+    duration: 0.25,
+    velocity: 1 + (i % 127),
+    color: '#c6a483',
+  }));
+  const res = await call('PUT', `/api/tracks/${id}`, track({ notes }));
+  assert.equal(res.status, 200, JSON.stringify(res.body).slice(0, 200));
+  const saved = await find(id);
+  assert.equal(saved.notes.length, 20_000);
+  assert.deepEqual(saved.notes[19_999], notes[19_999]);
+  await call('DELETE', `/api/tracks/${id}`);
+});
+
 test('rejects malformed tracks', async () => {
   const id = randomUUID();
   const bad = [
@@ -122,7 +139,7 @@ test('rejects malformed tracks', async () => {
     track({ notes: [{ pitch: 128, start: 0, duration: 1, velocity: 100 }] }),
     track({ notes: [{ pitch: 60, start: -1, duration: 1, velocity: 100 }] }),
     track({ notes: [{ pitch: 60, start: 0, duration: 0, velocity: 100 }] }),
-    track({ notes: Array.from({ length: 10_001 }, () => ({ pitch: 60, start: 0, duration: 1, velocity: 100 })) }),
+    track({ notes: Array.from({ length: 20_001 }, () => ({ pitch: 60, start: 0, duration: 1, velocity: 100 })) }),
   ];
   for (const b of bad) assert.equal((await call('PUT', `/api/tracks/${id}`, b)).status, 400, JSON.stringify(b).slice(0, 80));
   assert.equal((await call('PUT', '/api/tracks/bad id!', track())).status, 400);

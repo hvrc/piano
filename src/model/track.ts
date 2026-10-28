@@ -21,6 +21,8 @@ export interface TrackRecord {
 
 export const MIN_BPM = 20;
 export const MAX_BPM = 400;
-export const MAX_NOTES = 10_000; // keeps a Firestore document well under its 1 MiB limit
+// Stored compactly (4 numbers per note = 32 B, +8 B with a colour): 20k fully coloured notes ≈ 800 KB,
+// still under Firestore's 1 MiB document limit.
+export const MAX_NOTES = 20_000;
 export const MAX_BEAT = 100_000;
 export const TRACK_ID = /^[A-Za-z0-9-]{8,64}$/;
