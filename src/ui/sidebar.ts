@@ -1,0 +1,108 @@
+// Left sidebar: the saved tracks. Click to open; hover for download and delete.
+import type { Session } from '../library/session';
+import type { TrackRecord } from '../library/trackStore';
+import { BEATS_PER_BAR } from '../timeline/grid';
+import { libraryLink } from '../library/trackStore';
+
+const DOWNLOAD_ICON =
+  '<svg viewBox="0 0 16 16"><path d="M7 2h2v6.2l2.3-2.3 1.4 1.4L8 12 3.3 7.3l1.4-1.4L7 8.2zM3 13h10v1.5H3z"/></svg>';
+const DELETE_ICON =
+  '<svg viewBox="0 0 16 16"><path d="M6 2h4l.5 1H13v1.5H3V3h2.5zM4 5.5h8l-.6 8.5H4.6z"/></svg>';
+
+export function mountSidebar(session: Session): void {
+  const list = document.getElementById('track-list')!;
+  const empty = document.getElementById('track-empty')!;
+  document.getElementById('btn-new')!.addEventListener('click', () => void session.newTrack());
+
+  const library = document.getElementById('library')!;
+  library.innerHTML = 'Tracks are saved online to this browser’s private library.<br />';
+  const copy = document.createElement('button');
+  copy.className = 'text';
+  copy.textContent = 'Copy library link';
+  copy.title = 'Open this link on another device to see the same tracks. Anyone with it can edit them.';
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(libraryLink());
+      copy.textContent = 'Link copied';
+    } catch {
+      window.prompt('Copy this link:', libraryLink());
+    }
+    setTimeout(() => (copy.textContent = 'Copy library link'), 2000);
+  });
+  library.append(copy);
+
+  const render = () => {
+    list.replaceChildren(...session.tracks.map((t) => item(session, t)));
+    empty.hidden = session.tracks.length > 0 && !session.loadError;
+    if (!session.ready) empty.textContent = 'Loading tracks…';
+    else if (session.loadError) empty.textContent = session.loadError;
+    else empty.innerHTML = 'No saved tracks yet.<br />Press ⌘S to save this roll.';
+  };
+  session.subscribe(render);
+  render();
+}
+
+function item(session: Session, t: TrackRecord): HTMLLIElement {
+  const li = document.createElement('li');
+  li.className = 'track' + (t.id === session.trackId ? ' current' : '');
+
+  const main = document.createElement('button');
+  main.className = 'track-main';
+  main.title = `Open “${t.name}”`;
+  const title = document.createElement('span');
+  title.className = 'track-name';
+  title.textContent = t.id === session.trackId && session.dirty ? `${t.name} •` : t.name;
+  const meta = document.createElement('span');
+  meta.className = 'track-meta';
+  meta.textContent = describe(t);
+  main.append(title, meta);
+  main.addEventListener('click', () => void session.open(t.id));
+
+  const dl = document.createElement('button');
+  dl.className = 'track-action';
+  dl.title = 'Download MIDI';
+  dl.innerHTML = DOWNLOAD_ICON;
+  dl.addEventListener('click', () => session.downloadTrack(t));
+
+  // Two-step delete: first click arms, second click deletes.
+  const del = document.createElement('button');
+  del.className = 'track-action delete';
+  del.title = 'Delete track';
+  del.innerHTML = DELETE_ICON;
+  let timer = 0;
+  del.addEventListener('click', () => {
+    if (del.classList.contains('armed')) {
+      window.clearTimeout(timer);
+      void session.remove(t.id);
+      return;
+    }
+    del.classList.add('armed');
+    del.textContent = 'Delete?';
+    timer = window.setTimeout(() => {
+      del.classList.remove('armed');
+      del.innerHTML = DELETE_ICON;
+    }, 3000);
+  });
+
+  const actions = document.createElement('span');
+  actions.className = 'track-actions';
+  actions.append(dl, del);
+  li.append(main, actions);
+  return li;
+}
+
+function describe(t: TrackRecord): string {
+  const end = t.notes.reduce((m, n) => Math.max(m, n.start + n.duration), 0);
+  const bars = Math.max(1, Math.ceil(end / BEATS_PER_BAR - 1e-6));
+  const notes = `${t.notes.length} note${t.notes.length === 1 ? '' : 's'}`;
+  return `${notes} · ${bars} bar${bars === 1 ? '' : 's'} · ${formatDate(t.updatedAt)}`;
+}
+
+function formatDate(ms: number): string {
+  const d = new Date(ms);
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  return sameDay
+    ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}

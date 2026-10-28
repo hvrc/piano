@@ -1,0 +1,24 @@
+{
+  "name": "piano",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server/index.ts",
+    "build": "pnpm typecheck && vite build",
+    "start": "NODE_ENV=production node server/index.ts",
+    "typecheck": "tsc && tsc -p tsconfig.server.json",
+    "test": "node --test \"tests/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^9.4.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

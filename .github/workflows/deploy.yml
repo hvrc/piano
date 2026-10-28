@@ -1,0 +1,60 @@
+# Push to `release` → test, build the image, push it to Artifact Registry, deploy Cloud Run `piano`.
+# Auth is keyless: GitHub's OIDC token is exchanged through Workload Identity Federation
+# (pool `github`, provider `github`, restricted to this repository) for the `piano-deployer` service account.
+name: Deploy
+
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-release
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: hvrc-web
+  REGION: us-east1
+  SERVICE: piano
+  IMAGE: us-east1-docker.pkg.dev/hvrc-web/cloud-run-source-deploy/piano
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Test
+        run: |
+          npm install -g pnpm@11.18.0
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm test
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/883511463333/locations/global/workloadIdentityPools/github/providers/github
+          service_account: piano-deployer@hvrc-web.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push image
+        run: |
+          gcloud auth configure-docker us-east1-docker.pkg.dev --quiet
+          docker build -t "$IMAGE:$GITHUB_SHA" .
+          docker push "$IMAGE:$GITHUB_SHA"
+
+      - name: Deploy
+        run: |
+          gcloud run deploy "$SERVICE" --image "$IMAGE:$GITHUB_SHA" \
+            --project "$PROJECT_ID" --region "$REGION" --quiet
+          URL="$(gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')"
+          curl -fsS "$URL/_healthz"

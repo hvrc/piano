@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>piano</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23141518'/%3E%3Crect x='3' y='4' width='6' height='2' fill='%23f0a53c'/%3E%3Crect x='7' y='8' width='6' height='2' fill='%23f0a53c'/%3E%3Crect x='4' y='11' width='4' height='2' fill='%23f0a53c'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="group">
+        <button id="btn-sidebar" class="icon" title="Show / hide tracks" aria-label="Toggle tracks sidebar">
+          <svg viewBox="0 0 16 16"><path d="M2 3h12v10H2zm1.5 1.5v7H6v-7zm4 0v7h5v-7z" /></svg>
+        </button>
+        <div class="doc">
+          <input id="track-name" placeholder="Untitled" spellcheck="false" autocomplete="off" aria-label="Track name" />
+          <span id="dirty" class="dirty" title="Unsaved changes"></span>
+        </div>
+        <button id="btn-save" class="text" title="Save (⌘S)">Save</button>
+        <button id="btn-open" class="icon" title="Open a MIDI file (⌘O) — or drop one on the window" aria-label="Open MIDI file">
+          <svg viewBox="0 0 16 16"><path d="M7 14h2V7.8l2.3 2.3 1.4-1.4L8 4 3.3 8.7l1.4 1.4L7 7.8zM3 1.5h10V3H3z" /></svg>
+        </button>
+        <button id="btn-download" class="icon" title="Download as MIDI" aria-label="Download MIDI">
+          <svg viewBox="0 0 16 16"><path d="M7 2h2v6.2l2.3-2.3 1.4 1.4L8 12 3.3 7.3l1.4-1.4L7 8.2zM3 13h10v1.5H3z" /></svg>
+        </button>
+        <input id="file-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
+        <span class="sep"></span>
+        <button id="btn-start" class="icon" title="Return to start (Home)" aria-label="Return to start">
+          <svg viewBox="0 0 16 16"><rect x="3" y="3" width="2" height="10" /><path d="M13 3v10L6 8z" /></svg>
+        </button>
+        <button id="btn-play" class="icon play" title="Play (Space)" aria-label="Play">
+          <svg class="i-play" viewBox="0 0 16 16"><path d="M4 2.5v11L13.5 8z" /></svg>
+          <svg class="i-pause" viewBox="0 0 16 16"><rect x="3.5" y="3" width="3" height="10" /><rect x="9.5" y="3" width="3" height="10" /></svg>
+        </button>
+        <output id="pos" class="readout" title="Playback position (bar.beat.sixteenth)">1.1.1</output>
+        <label class="tempo" title="Tempo: drag up/down, or click to type">
+          <input id="bpm" inputmode="decimal" autocomplete="off" spellcheck="false" />
+          <span>BPM</span>
+        </label>
+      </div>
+      <div class="group">
+        <button id="btn-keys" class="toggle keys" title="Play notes with the computer keyboard (M)" aria-label="Computer keyboard">
+          <svg viewBox="0 0 16 16"><path d="M1.5 4h13v8h-13zM3 5.5v1.5h1.5V5.5zm2.5 0v1.5H7V5.5zm2.5 0v1.5h1.5V5.5zm2.5 0v1.5H12V5.5zM3 8v1.5h1.5V8zm2.5 0v1.5H7V8zm2.5 0v1.5h1.5V8zm2.5 0v1.5H12V8zM4.5 10.5V11h7v-.5z" /></svg>
+          <span id="keys-info"></span>
+        </button>
+        <button id="btn-draw" class="toggle" title="Draw mode (B)" aria-label="Draw mode">
+          <svg viewBox="0 0 16 16"><path d="M2.5 13.5l.9-3.3 7.4-7.4 2.4 2.4-7.4 7.4z" /></svg>
+        </button>
+        <span class="sep"></span>
+        <label class="grid-label" title="Grid size (1 / 2 to narrow / widen)">
+          <span>Grid</span>
+          <select id="grid"></select>
+        </label>
+        <button id="btn-triplet" class="toggle text" title="Triplet grid (3)">3</button>
+        <button id="btn-snap" class="toggle text" title="Snap to grid (4). Hold ⌘ while dragging to bypass.">Snap</button>
+        <span class="sep"></span>
+        <span id="status" class="status"></span>
+        <button id="btn-help" class="icon" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
+      </div>
+    </header>
+
+    <div class="body">
+      <aside class="sidebar" aria-label="Tracks">
+        <div class="side-head">
+          <span>Tracks</span>
+          <button id="btn-new" class="text" title="Start a new empty roll">+ New</button>
+        </div>
+        <ul id="track-list" class="track-list"></ul>
+        <p id="track-empty" class="side-empty">No saved tracks yet.<br />Press ⌘S to save this roll.</p>
+        <div id="library" class="library"></div>
+      </aside>
+      <main class="roll"><canvas id="roll-canvas"></canvas></main>
+    </div>
+
+    <div id="help" class="help" hidden>
+      <div class="help-card" role="dialog" aria-label="Shortcuts">
+        <h2>Shortcuts</h2>
+        <div class="cols">
+          <dl>
+            <dt>Space</dt><dd>Play / pause</dd>
+            <dt>Home</dt><dd>Return to start</dd>
+            <dt>Click ruler</dt><dd>Move playhead (drag to scrub)</dd>
+            <dt>← →</dt><dd>Move playhead by grid (no selection)</dd>
+            <dt>B</dt><dd>Toggle draw mode</dd>
+            <dt>Double-click</dt><dd>Add note / delete note</dd>
+            <dt>Drag empty space</dt><dd>Select notes</dd>
+            <dt>⇧ click</dt><dd>Add / remove from selection</dd>
+            <dt>⌥ drag</dt><dd>Copy notes (draw mode: lock pitch)</dd>
+            <dt>⌘ drag</dt><dd>Bypass snapping</dd>
+            <dt>Drag note edge</dt><dd>Change length</dd>
+            <dt>M</dt><dd>Computer keyboard on / off</dd>
+            <dt>A W S E D … ;  '</dt><dd>Play C to F (keyboard on)</dd>
+            <dt>Z / X · C / V</dt><dd>Octave · velocity (keyboard on)</dd>
+          </dl>
+          <dl>
+            <dt>↑ ↓ / ⇧↑ ↓</dt><dd>Transpose semitone / octave</dd>
+            <dt>← → / ⇧← →</dt><dd>Move / resize selection by grid</dd>
+            <dt>⌘S / ⇧⌘S</dt><dd>Save / save a copy</dd>
+            <dt>⌘O</dt><dd>Open a MIDI file</dd>
+            <dt>⌘D</dt><dd>Duplicate</dd>
+            <dt>⌘C ⌘X ⌘V</dt><dd>Copy, cut, paste at playhead</dd>
+            <dt>⌘A / Esc</dt><dd>Select all / deselect</dd>
+            <dt>⌫</dt><dd>Delete</dd>
+            <dt>⌘Z / ⇧⌘Z</dt><dd>Undo / redo</dd>
+            <dt>1 / 2</dt><dd>Narrow / widen grid</dd>
+            <dt>3 / 4</dt><dd>Triplets / snap on-off</dd>
+            <dt>⌘ scroll, pinch, + −</dt><dd>Zoom time</dd>
+            <dt>⌥ scroll</dt><dd>Zoom key height</dd>
+            <dt>Drag lower ruler</dt><dd>↕ zoom, ↔ scroll</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
