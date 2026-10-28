@@ -14,6 +14,12 @@ import { prefs } from '../state/prefs';
 const TICKS_H = SCRUB_H + BEAT_H; // ruler height below the loop lane
 const KEY_GLOW_FLOOR = 0.12; // a held note never fades out completely
 
+/** Opacity for lines `spacing` px apart: 1 when roomy (≥ full), easing to `floor` when cramped (≤ min). */
+function crowdFade(spacing: number, min: number, full: number, floor: number): number {
+  const t = Math.max(0, Math.min(1, (spacing - min) / (full - min)));
+  return floor + (1 - floor) * t * t;
+}
+
 export class Renderer {
   private g: CanvasRenderingContext2D;
   private dpr = 1;
@@ -396,8 +402,14 @@ export class Renderer {
       const top = Math.max(0, vp.pitchToY(MAX_PITCH));
       const h = Math.min(vp.height, vp.pitchToY(MIN_PITCH) + rh) - top;
       const step = gridStep(store.grid);
+      // Lines fade as they crowd together when zoomed out (bars never fade below a third).
+      const ppb = vp.pxPerBeat;
+      const unit = step * ppb >= 6 ? step : 1;
+      g.globalAlpha = crowdFade(unit * ppb, 6, 48, 0);
       this.forGridLines(step, 6, (x, onBeat) => this.dotted(x, top, h, onBeat ? C.lineBeat : C.lineSub, onBeat ? 2 : 4));
+      g.globalAlpha = crowdFade(this.barSkip(8) * BEATS_PER_BAR * ppb, 16, 160, 0.35);
       this.forBars(this.barSkip(8), (x) => this.vline(x, top, h, C.lineBar));
+      g.globalAlpha = 1;
 
       // Live greys out everything outside an active loop.
       const loop = store.loop;
@@ -612,7 +624,9 @@ export class Renderer {
         g.stroke();
       }
       g.setLineDash([]);
+      g.globalAlpha = crowdFade(this.barSkip(8) * BEATS_PER_BAR * vp.pxPerBeat, 16, 160, 0.35);
       this.forBars(this.barSkip(8), (x) => this.vline(x, top, VEL_H, C.velGuide));
+      g.globalAlpha = 1;
 
       const base = layout.velocityToY(0);
       for (const n of this.visible) {
