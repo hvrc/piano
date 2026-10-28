@@ -7,7 +7,9 @@
 //  - Boneless (snap off): nothing snaps; draw mode places notes exactly under the mouse.
 //  - Velocity lane: drag a stem up/down (selected stems move together); in draw mode, sweep
 //    across the lane to paint velocities.
-//  - Keyboard: click/drag to audition; Shift-click selects every note of that key.
+//  - Keyboard (Live's note ruler): click to audition (drag up/down for a glissando); drag
+//    left/right to zoom key-track height; double-click to fit the notes (or the selection) to the
+//    view; Shift-click adds/removes every note of that key to/from the selection.
 //  - Ruler: the loop lane holds the loop brace (drag body to move, edges to resize, empty lane to
 //    draw a new loop, click to switch it on/off); the scrub strip moves the playhead; dragging the
 //    beat strip zooms (vertical) / scrolls (horizontal).
@@ -70,7 +72,7 @@ type Drag = DragBase &
     | { kind: 'erase' }
     | { kind: 'scrub' }
     | { kind: 'rulerZoom'; last: Point }
-    | { kind: 'key'; pitch: number }
+    | { kind: 'key'; pitch: number; last: Point; zooming: boolean }
     | { kind: 'loop'; mode: LoopZone; originBeat: number; base: LoopSettings }
   );
 
@@ -248,7 +250,8 @@ export class Editor {
         else this.downSelect(p, isDouble);
         break;
       case 'keys':
-        this.downKeys(p);
+        if (isDouble) this.fitKeys();
+        else this.downKeys(p);
         break;
       case 'velocity':
         this.downVelocity(p);
@@ -360,10 +363,26 @@ export class Editor {
     const pitch = this.pitchAt(p);
     if (!isValidPitch(pitch)) return;
     if (this.mods.shift) {
-      this.store.setSelection(this.store.notes.filter((n) => n.pitch === pitch).map((n) => n.id));
+      // Live: Shift-click adds the key track's notes to the selection, or removes them if all selected.
+      const ids = this.store.notes.filter((n) => n.pitch === pitch).map((n) => n.id);
+      const sel = new Set(this.store.selection);
+      const allIn = ids.length > 0 && ids.every((id) => sel.has(id));
+      for (const id of ids) {
+        if (allIn) sel.delete(id);
+        else sel.add(id);
+      }
+      this.store.setSelection(sel);
     }
-    this.startDrag(p, { kind: 'key', pitch });
+    this.startDrag(p, { kind: 'key', pitch, last: p, zooming: false });
     this.audition(pitch);
+  }
+
+  /** Double-click on the keys: zoom key tracks to the selected notes, or all notes (Live). */
+  private fitKeys(): void {
+    const notes = this.store.selection.size ? this.store.selectedNotes() : this.store.notes;
+    if (!notes.length) return;
+    const { lo, hi } = noteBounds(notes);
+    this.vp.fitPitches(lo, hi);
   }
 
   private downVelocity(p: Point): void {
@@ -430,6 +449,18 @@ export class Editor {
         d.last = p;
         return;
       case 'key': {
+        // A mostly-horizontal drag zooms key-track height (right = taller), anchored where it began.
+        const dx = p.x - d.origin.x;
+        if (!d.zooming && Math.abs(dx) > DRAG_THRESHOLD && Math.abs(dx) > Math.abs(p.y - d.origin.y)) {
+          d.zooming = true;
+          this.cancelPreview();
+        }
+        if (d.zooming) {
+          this.vp.zoomY(Math.exp((p.x - d.last.x) * 0.015), this.layout.toGrid(d.origin).y);
+          d.last = p;
+          return;
+        }
+        d.last = p;
         const pitch = clampPitch(this.pitchAt(p));
         if (pitch !== d.pitch) {
           d.pitch = pitch;
@@ -692,6 +723,8 @@ export class Editor {
         return PENCIL_CURSOR;
       case 'velocity':
         return 'ns-resize';
+      case 'key':
+        return d.zooming ? 'ew-resize' : 'pointer';
       case 'rulerZoom':
         return 'zoom-in';
       case 'scrub':

@@ -83,6 +83,13 @@ export class Viewport {
     this.scrollTo(this.scrollX, rows * this.rowHeight - anchorY);
   }
 
+  /** Fit the key tracks from `lo` to `hi` (with a little margin) into the view, as Live's ruler double-click does. */
+  fitPitches(lo: number, hi: number): void {
+    if (this.height <= 0) return;
+    this.rowF = clamp(this.height / (hi - lo + 1 + 4), MIN_ROW, MAX_ROW);
+    this.centerOnPitch((lo + hi) / 2);
+  }
+
   centerOnPitch(pitch: number): void {
     if (this.height <= 0) {
       this.pendingCenter = pitch; // not laid out yet; apply once we know our size
