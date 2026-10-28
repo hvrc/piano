@@ -6,7 +6,21 @@ import type { GridSettings } from '../timeline/grid';
 
 export type { LoopSettings };
 
-export type ChangeKind = 'notes' | 'selection' | 'position' | 'playing' | 'bpm' | 'grid' | 'mode' | 'keyboard' | 'loop';
+export type ChangeKind =
+  | 'notes'
+  | 'selection'
+  | 'position'
+  | 'playing'
+  | 'bpm'
+  | 'grid'
+  | 'mode'
+  | 'keyboard'
+  | 'loop'
+  | 'recording'
+  | 'view';
+
+/** The main view: the piano roll, or Synthesia-style falling notes. */
+export type ViewMode = 'roll' | 'falling';
 
 /** Live's computer MIDI keyboard: A..' play a 1.5-octave range starting at `base`. */
 export interface KeyboardSettings {
@@ -42,6 +56,8 @@ export class Store {
   playing = false;
   grid: GridSettings = { division: 0.25, triplet: false, snap: true };
   drawMode = false;
+  recording = false;
+  view: ViewMode = 'roll';
   keyboard: KeyboardSettings = { enabled: false, base: 60, velocity: 100 };
   loop: LoopSettings = DEFAULT_LOOP;
 
@@ -108,7 +124,7 @@ export class Store {
     loop: LoopSettings = DEFAULT_LOOP,
   ): void {
     this.loop = { ...loop };
-    this.notes = notes.map((n) => this.makeNote(n.pitch, n.start, n.duration, n.velocity));
+    this.notes = notes.map((n) => ({ ...n, id: this.newId() }));
     this.selection = new Set();
     this.undoStack = [];
     this.redoStack = [];
@@ -182,6 +198,16 @@ export class Store {
   setKeyboard(patch: Partial<KeyboardSettings>): void {
     this.keyboard = { ...this.keyboard, ...patch };
     this.emit('keyboard');
+  }
+
+  setRecording(on: boolean): void {
+    this.recording = on;
+    this.emit('recording');
+  }
+
+  setView(view: ViewMode): void {
+    this.view = view;
+    this.emit('view');
   }
 
   setDrawMode(on: boolean): void {

@@ -13,7 +13,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.88em' font-size='88'%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=coffee,delete,description,download,edit,help,keyboard,pause,play_arrow,repeat,side_navigation,skip_previous,upload&display=block" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=audio_file,close,coffee,delete,description,download,edit,fiber_manual_record,keyboard,mic,palette,pause,piano,play_arrow,repeat,settings,side_navigation,skip_previous,stop,timer,upload&display=block" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Bungee+Hairline&family=Ballet:opsz@16..72&display=swap" rel="stylesheet" />
   </head>
   <body>
@@ -38,8 +38,14 @@
           <span class="msr i-play" aria-hidden="true">play_arrow</span>
           <span class="msr i-pause" aria-hidden="true">pause</span>
         </button>
+        <button id="btn-record" class="toggle icon" title="Record notes from the computer or a MIDI keyboard (R)" aria-label="Record">
+          <span class="msr" aria-hidden="true">fiber_manual_record</span>
+        </button>
         <button id="btn-loop" class="toggle icon" title="Loop (L) · ⌘L loops the selected notes" aria-label="Loop">
           <span class="msr" aria-hidden="true">repeat</span>
+        </button>
+        <button id="btn-metronome" class="toggle icon" title="Metronome (O)" aria-label="Metronome">
+          <span class="msr" aria-hidden="true">timer</span>
         </button>
         <output id="pos" class="readout" title="Playback position (bar.beat.sixteenth)">1.1.1</output>
         <label class="tempo" title="Tempo in BPM: drag up/down, or click to type">
@@ -67,6 +73,13 @@
         <button id="btn-boneless" class="toggle text" title="Boneless (4): nothing snaps to the grid — notes go exactly where you put them">Boneless</button>
         </div>
         <div class="cluster">
+        <div class="pop-wrap">
+          <button id="btn-color" class="icon" title="Colour the selected notes" aria-label="Note colour"><span class="msr" aria-hidden="true">palette</span></button>
+          <div id="color-pop" class="pop color-pop" hidden>
+            <p id="color-hint">Colour the selected notes.</p>
+            <div id="color-swatches" class="swatches"></div>
+          </div>
+        </div>
         <button id="btn-legato" class="text" title="Legato (⇧⌘L): stretch each note to the start of the next. Uses the selection, or all notes.">Legato</button>
         <div class="pop-wrap">
           <button id="btn-humanize" class="text" title="Humanize: nudge notes slightly earlier or later at random">Humanize</button>
@@ -79,11 +92,10 @@
         </div>
         </div>
         <div class="cluster">
-        <span id="status" class="status"></span>
-        <button id="btn-theme" class="icon" title="Theme">
-          <span class="msr" aria-hidden="true">description</span>
-        </button>
-        <button id="btn-help" class="icon" title="Shortcuts (?)" aria-label="Shortcuts"><span class="msr" aria-hidden="true">help</span></button>
+        <button id="btn-falling" class="toggle icon" title="Synthesia mode: falling notes (V)" aria-label="Synthesia mode"><span class="msr" aria-hidden="true">piano</span></button>
+        <button id="btn-transcribe" class="icon" title="Transcribe audio into notes" aria-label="Transcribe audio"><span class="msr" aria-hidden="true">mic</span></button>
+        <button id="btn-theme" class="icon" title="Theme"><span class="msr" aria-hidden="true">description</span></button>
+        <button id="btn-settings" class="icon" title="Settings (?)" aria-label="Settings"><span class="msr" aria-hidden="true">settings</span></button>
         </div>
       </div>
     </header>
@@ -117,8 +129,32 @@
     </div>
 
     <div id="help" class="help" hidden>
-      <div class="help-card" role="dialog" aria-label="Shortcuts">
-        <h2>Shortcuts</h2>
+      <div class="help-card settings-card" role="dialog" aria-label="Settings">
+        <div class="settings-head">
+          <h2>Settings</h2>
+          <button id="settings-close" class="icon" title="Close (Esc)" aria-label="Close"><span class="msr" aria-hidden="true">close</span></button>
+        </div>
+        <div class="settings-grid">
+          <section>
+            <h3>Theme</h3>
+            <div id="theme-choices" class="choices"></div>
+          </section>
+          <section>
+            <h3>Note colour</h3>
+            <p class="note">For notes you haven’t coloured yourself. Remembered on this browser.</p>
+            <div id="default-swatches" class="swatches"></div>
+          </section>
+          <section>
+            <h3>Midi keyboard</h3>
+            <p id="midi-status" class="note">Not connected.</p>
+            <button id="midi-connect" class="text">Connect MIDI keyboard</button>
+          </section>
+          <section>
+            <h3>Sound</h3>
+            <p class="note"><span id="status" class="status-text"></span></p>
+          </section>
+        </div>
+        <h3>Shortcuts</h3>
         <div class="cols">
           <dl>
             <dt>Space</dt><dd>Play / pause</dd>
@@ -159,6 +195,8 @@
             <dt>Drag lower ruler</dt><dd>↕ zoom, ↔ scroll</dd>
             <dt>Drag keys ↔</dt><dd>Key height (right = taller)</dd>
             <dt>Double-click keys</dt><dd>Fit notes / selection</dd>
+            <dt>R · O · V</dt><dd>Record · metronome · Synthesia mode</dd>
+            <dt>?</dt><dd>Settings</dd>
           </dl>
         </div>
       </div>

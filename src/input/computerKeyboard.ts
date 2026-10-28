@@ -1,8 +1,7 @@
 // Ableton Live's "Computer MIDI Keyboard": the home row plays white keys, the row above plays
 // black keys (A W S E D F T G Y H U J K O L P ; ' = C up to the F an octave and a half above).
 // Z / X shift the octave, C / V change velocity. Uses physical key codes, so it works on any layout.
-import { getAudioContext, playNow } from '../audio/context';
-import type { Instrument, Voice } from '../audio/instrument';
+import type { LiveInput } from './liveInput';
 import { MAX_PITCH } from '../music/pitch';
 import { clampVelocity } from '../model/note';
 import type { Store } from '../state/store';
@@ -16,12 +15,11 @@ const MAX_BASE = 120; // C8
 const VELOCITY_STEP = 20;
 
 export class ComputerKeyboard {
-  private held = new Map<string, { pitch: number; voice: Voice }>();
+  private held = new Map<string, number>(); // key code → pitch
 
   constructor(
     private store: Store,
-    private instrument: Instrument,
-    private onHeld: (pitches: Set<number>) => void,
+    private live: LiveInput,
   ) {
     window.addEventListener('keyup', (e) => this.keyUp(e.code));
     window.addEventListener('blur', () => this.releaseAll());
@@ -40,8 +38,8 @@ export class ComputerKeyboard {
     if (offset !== undefined) {
       const pitch = kb.base + offset;
       if (!e.repeat && !this.held.has(e.code) && pitch <= MAX_PITCH) {
-        this.held.set(e.code, { pitch, voice: playNow(this.instrument, pitch, kb.velocity) });
-        this.emit();
+        this.held.set(e.code, pitch);
+        this.live.noteOn('computer', pitch, kb.velocity);
       }
       return true;
     }
@@ -63,18 +61,13 @@ export class ComputerKeyboard {
   }
 
   private keyUp(code: string): void {
-    const h = this.held.get(code);
-    if (!h) return;
-    h.voice.release(getAudioContext().currentTime);
+    const pitch = this.held.get(code);
+    if (pitch === undefined) return;
     this.held.delete(code);
-    this.emit();
+    this.live.noteOff('computer', pitch);
   }
 
   releaseAll(): void {
     for (const code of [...this.held.keys()]) this.keyUp(code);
-  }
-
-  private emit(): void {
-    this.onHeld(new Set([...this.held.values()].map((h) => h.pitch)));
   }
 }

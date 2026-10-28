@@ -8,7 +8,8 @@ import { BEATS_PER_BAR, gridStep, isMultiple } from '../timeline/grid';
 import type { Viewport } from '../timeline/viewport';
 import { BEAT_H, KEYS_W, LOOP_H, PANEL_RADIUS, RULER_H, SCRUB_H, VEL_H, type Layout } from './layout';
 import type { Overlay } from './overlay';
-import { C, FONT, noteFill, paperGrain, SERIF } from './theme';
+import { C, FONT, labelOn, noteFill, paperGrain, SERIF } from './theme';
+import { prefs } from '../state/prefs';
 
 const TICKS_H = SCRUB_H + BEAT_H; // ruler height below the loop lane
 const KEY_GLOW_FLOOR = 0.12; // a held note never fades out completely
@@ -62,6 +63,10 @@ export class Renderer {
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     // Two rounded panels (the roll, and the velocity lane) on a transparent canvas.
     g.clearRect(0, 0, layout.width, layout.height);
+    if (this.store.view === 'falling') {
+      this.inPanel(0, layout.height, () => this.drawFalling(this.keyGlow()));
+      return;
+    }
     this.collectVisible();
 
     this.inPanel(0, layout.rollHeight, () => {
@@ -77,6 +82,112 @@ export class Renderer {
     this.inPanel(layout.velocityTop, VEL_H, () => this.drawVelocity());
     // Last and unclipped: the handwritten dynamics' swashes go in front of everything.
     this.drawDynamics();
+  }
+
+  // ---------------------------------------------------------------- Synthesia mode
+
+  /** Falling notes onto a piano keyboard, like Synthesia. Time flows down; notes hit the keys. */
+  private drawFalling(glow: Map<number, number>): void {
+    const { g, layout, store } = this;
+    const W = layout.width;
+    const H = layout.height;
+    g.fillStyle = C.rowWhite;
+    g.fillRect(0, 0, W, H);
+    this.paper(W, H);
+
+    // Keyboard range: the octaves the notes use, at least three.
+    let lo = 48;
+    let hi = 83;
+    if (store.notes.length) {
+      const pitches = store.notes.map((n) => n.pitch);
+      lo = Math.floor(Math.min(...pitches) / 12) * 12;
+      hi = Math.ceil((Math.max(...pitches) + 1) / 12) * 12 - 1;
+    }
+    while (hi - lo + 1 < 36) {
+      lo = Math.max(0, lo - 12);
+      if (hi - lo + 1 < 36) hi = Math.min(127, hi + 12);
+    }
+    const whites: number[] = [];
+    for (let p = lo; p <= hi; p++) if (!isBlackKey(p)) whites.push(p);
+    const whiteW = W / whites.length;
+    const blackW = whiteW * 0.62;
+    const keyRect = (p: number) => {
+      if (!isBlackKey(p)) return { x: whites.indexOf(p) * whiteW, w: whiteW };
+      return { x: (whites.indexOf(p - 1) + 1) * whiteW - blackW / 2, w: blackW };
+    };
+
+    const kbH = Math.max(70, Math.min(140, H * 0.18));
+    const kbTop = H - kbH;
+    const cur = this.playheadBeat();
+    const beatsVisible = (4 * store.bpm) / 60; // about four seconds ahead
+    const ppb = kbTop / beatsVisible;
+    const yOf = (b: number) => kbTop - (b - cur) * ppb;
+
+    // Beat and bar rules, and a faint line at each C.
+    for (let b = Math.ceil(cur); b <= cur + beatsVisible; b++) {
+      g.fillStyle = b % BEATS_PER_BAR === 0 ? C.lineBar : C.lineBeat;
+      g.fillRect(0, Math.round(yOf(b)), W, 1);
+    }
+    for (const p of whites) {
+      if (p % 12 === 0) this.vline(keyRect(p).x, 0, kbTop, C.rowLine);
+    }
+
+    // Notes
+    for (const n of store.notes) {
+      if (noteEnd(n) < cur || n.start > cur + beatsVisible || n.pitch < lo || n.pitch > hi) continue;
+      const { x, w } = keyRect(n.pitch);
+      const y1 = Math.min(kbTop, yOf(n.start));
+      const y0 = yOf(noteEnd(n));
+      if (y1 - y0 < 1) continue;
+      const sounding = n.start <= cur && cur < noteEnd(n);
+      const color = n.color ?? prefs.value.noteColor ?? C.noteSelected;
+      g.beginPath();
+      g.roundRect(x + 2, y0, w - 4, y1 - y0, Math.min(6, (w - 4) / 2));
+      g.fillStyle = noteFill(sounding ? 127 : n.velocity, sounding, color);
+      g.fill();
+    }
+
+    // Keyboard: white keys, then black keys on top, each glowing while its note sounds.
+    g.fillStyle = C.keysBorder;
+    g.fillRect(0, kbTop - 1, W, 1);
+    const drawKey = (p: number) => {
+      const { x, w } = keyRect(p);
+      const black = isBlackKey(p);
+      const h = black ? kbH * 0.62 : kbH;
+      g.beginPath();
+      g.roundRect(x + 0.5, kbTop, w - 1, h, [0, 0, 5, 5]);
+      g.fillStyle = black ? C.keyBlack : C.keyWhite;
+      g.fill();
+      const level = glow.get(p) ?? 0;
+      if (level > 0) {
+        g.globalAlpha = level;
+        g.fillStyle = black ? C.keyActiveBlack : C.keyActive;
+        g.fill();
+        g.globalAlpha = 1;
+      }
+      if (!black) {
+        g.fillStyle = C.keyWhiteLine;
+        g.fillRect(Math.round(x + w) - 1, kbTop, 1, h);
+        if (p % 12 === 0) {
+          g.fillStyle = C.keyNameOnLight;
+          g.font = `11px ${FONT}`;
+          g.textAlign = 'center';
+          g.textBaseline = 'alphabetic';
+          g.fillText(pitchName(p), x + w / 2, H - 8);
+          g.textAlign = 'left';
+        }
+      }
+    };
+    whites.forEach(drawKey);
+    for (let p = lo; p <= hi; p++) if (isBlackKey(p)) drawKey(p);
+
+    if (!store.notes.length) {
+      g.fillStyle = C.hint;
+      g.font = `24px ${SERIF}`;
+      g.textAlign = 'center';
+      g.fillText('Synthesia mode — open a track or play some notes', W / 2, kbTop / 2);
+      g.textAlign = 'left';
+    }
   }
 
   /** ff / mf / pp beside the velocity lane: a little musical twist on Live's 1–127 scale. */
@@ -312,15 +423,18 @@ export class Renderer {
         const h = rh - 1;
         const hovered = overlay.hoverNote === n.id;
 
-        // Ink slots punched in the roll; the selection is inked in teal.
+        // Ink slots punched in the roll. Uncoloured notes are inked in the theme's selection colour
+        // when selected; coloured notes keep their colour and get a selection outline instead.
+        const color = n.color ?? prefs.value.noteColor;
         const r = Math.min(3, h / 2, w / 2);
         g.beginPath();
         g.roundRect(x, y + 1, w, h - 1, r);
-        g.fillStyle = selected ? (hovered ? C.noteSelectedHover : C.noteSelected) : noteFill(n.velocity, hovered);
+        g.fillStyle =
+          selected && !color ? (hovered ? C.noteSelectedHover : C.noteSelected) : noteFill(selected ? 127 : n.velocity, hovered, color);
         g.fill();
         if (selected) {
-          g.strokeStyle = C.noteSelectedOutline;
-          g.lineWidth = 1;
+          g.strokeStyle = color ? C.noteSelected : C.noteSelectedOutline;
+          g.lineWidth = color ? 2 : 1;
           g.stroke();
         }
 
@@ -328,7 +442,7 @@ export class Renderer {
         if (rh >= 12) {
           const label = pitchName(n.pitch);
           if (this.labelWidth(font, label) + 7 <= w) {
-            g.fillStyle = C.noteLabel;
+            g.fillStyle = labelOn(color);
             g.fillText(label, x + 4, y + rh / 2 - 0.5);
           }
         }
@@ -498,7 +612,8 @@ export class Renderer {
         const y = layout.velocityToY(n.velocity);
         const hot = overlay.velocityNote === n.id;
         // An ink stem with an open punch-hole head (Live's velocity editor, on paper).
-        const color = selected ? C.noteSelected : noteFill(n.velocity, hot);
+        const own = n.color ?? prefs.value.noteColor;
+        const color = selected && !own ? C.noteSelected : noteFill(selected ? 127 : n.velocity, hot, own);
         g.fillStyle = color;
         g.fillRect(x - 0.5, y, hot ? 2 : 1, base - y);
         g.globalAlpha = 0.25;

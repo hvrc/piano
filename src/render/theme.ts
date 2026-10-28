@@ -11,6 +11,8 @@ export type ThemeName = 'paper' | 'espresso';
 export const THEMES: ThemeName[] = ['paper', 'espresso'];
 export const THEME_LABELS: Record<ThemeName, string> = { paper: 'Paper', espresso: 'Espresso' };
 
+import { hexToRgb } from '../model/colors';
+
 const PAPER_INK = '35, 32, 27'; // rgb
 const CREAM_INK = '237, 231, 223';
 const inkOf = (rgb: string) => (a: number) => `rgba(${rgb}, ${a})`;
@@ -187,8 +189,31 @@ export const FONT = '"Bungee Hairline", ui-monospace, "SF Mono", Menlo, monospac
 export const SERIF = '"Ballet", "Iowan Old Style", Georgia, cursive';
 
 /** Notes are ink slots punched in the roll: softer notes are fainter ink. */
-export function noteFill(velocity: number, hovered: boolean): string {
-  return fills[hovered ? 1 : 0][Math.max(0, Math.min(127, Math.round(velocity)))];
+export function noteFill(velocity: number, hovered: boolean, color?: string | null): string {
+  const v = Math.max(0, Math.min(127, Math.round(velocity)));
+  return (color ? colorFills(color) : fills)[hovered ? 1 : 0][v];
+}
+
+// Per-colour velocity ramps for coloured notes, built on first use and kept.
+const colorCache = new Map<string, string[][]>();
+function colorFills(hex: string): string[][] {
+  let f = colorCache.get(hex);
+  if (!f) {
+    const c = inkOf(hexToRgb(hex));
+    f = [false, true].map((hovered) =>
+      Array.from({ length: 128 }, (_, v) => c(Math.min(1, 0.4 + 0.6 * (v / 127) + (hovered ? 0.15 : 0)))),
+    );
+    colorCache.set(hex, f);
+  }
+  return f;
+}
+
+/** Ink that reads on top of a note colour: dark on light colours, light on dark ones. */
+export function labelOn(hex: string | null | undefined): string {
+  if (!hex) return C.noteLabel;
+  const n = parseInt(hex.slice(1), 16);
+  const lum = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+  return lum > 140 ? 'rgba(25, 22, 19, 0.85)' : 'rgba(250, 247, 238, 0.92)';
 }
 
 /** A small tile of paper grain (ink specks and faint fibres), generated once. */

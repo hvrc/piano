@@ -489,3 +489,43 @@ button.danger:hover { background: var(--danger-fill); }
 .pop output { font: 400 12px var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
 .pop p { margin: 0; font-size: 10px; line-height: 1.55; color: var(--ink-soft); }
 .pop .primary { justify-self: end; padding: 0 12px; }
+
+/* ------------------------------------------------------------ settings, swatches, record */
+
+.help-card.settings-card { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.settings-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.settings-head h2 { margin: 0; }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px 28px; margin-bottom: 22px; }
+.settings-card h3 { margin: 0 0 10px; font: 22px/1.2 var(--serif); color: var(--ink); position: relative; z-index: 3; }
+.settings-card .note { margin: 0 0 10px; font: 400 11px/1.6 var(--mono); color: var(--ink-soft); }
+.choices { display: flex; gap: 6px; flex-wrap: wrap; }
+.choices button.on { background: var(--ink); color: var(--on-ink); }
+
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.swatch:hover { background: var(--swatch); transform: scale(1.12); }
+.swatch.on { box-shadow: 0 0 0 2px var(--paper-card), 0 0 0 4px var(--ink); }
+.swatch.none { background: var(--fill); font: 400 12px/1 var(--ui); }
+.swatch.none:hover { background: var(--fill-hover); }
+.color-pop { width: 232px; }
+.color-pop p { margin: 0; }
+
+#btn-record.on { background: var(--red); color: var(--on-accent); }
+#btn-record.on .msr { animation: rec-pulse 1.2s ease-in-out infinite; }
+@keyframes rec-pulse { 50% { opacity: 0.45; } }
+#btn-metronome.on { background: var(--highlight); color: var(--on-highlight); }
+#btn-falling.on { background: var(--teal); color: var(--on-accent); }
+
+.transcribe-card { width: min(460px, calc(100vw - 32px)); }
+.transcribe-status { min-height: 18px; margin: -6px 0 16px; font: 400 12px/1.5 var(--mono); color: var(--red); }
+.dialog-buttons button .msr { font-size: 17px; }
+.swatches.disabled { opacity: 0.4; pointer-events: none; }
+.transcribe-option { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font: 19px var(--serif); color: var(--ink-soft); }

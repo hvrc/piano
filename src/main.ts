@@ -23,13 +23,20 @@ import { mountThemeToggle } from './ui/themeToggle';
 import { mountTools } from './ui/tools';
 import { mountTransportBar } from './ui/transportBar';
 import { storageGet, storageSet } from './util/storage';
+import { scheduleClick } from './audio/click';
+import { LiveInput } from './input/liveInput';
+import { MidiInput } from './input/midiInput';
+import { Recorder } from './playback/recorder';
+import { prefs } from './state/prefs';
+import { mountColors } from './ui/colors';
+import { mountSettings } from './ui/settings';
+import { openTranscribeDialog } from './ui/transcribeDialog';
 
 const MIN_BARS = 32;
 const TAIL_BARS = 16; // empty room to keep composing past the last note
 const DEFAULT_CENTRE_PITCH = 66; // middle C (C3) a little below centre
 
 const canvas = $<HTMLCanvasElement>('roll-canvas');
-const helpPanel = $('help');
 
 // --- core -------------------------------------------------------------------
 
@@ -39,8 +46,13 @@ const layout = new Layout();
 const overlay = createOverlay();
 
 const ctx = getAudioContext();
-const piano = new Piano(ctx, createMasterBus(ctx));
+const bus = createMasterBus(ctx);
+const piano = new Piano(ctx, bus);
 const transport = new Transport(store, piano);
+transport.metronome = {
+  enabled: () => prefs.value.metronome,
+  click: (when, accent) => scheduleClick(ctx, bus, when, accent),
+};
 const follow = new PlayheadFollow(store, vp);
 
 let dirty = true;
@@ -48,10 +60,14 @@ const invalidate = () => (dirty = true);
 
 const renderer = new Renderer(canvas, store, vp, layout, overlay, () => transport.currentBeat());
 const editor = new Editor(canvas, store, vp, layout, overlay, piano, transport, invalidate);
-const keyboard = new ComputerKeyboard(store, piano, (held) => {
+// Live playing (computer keyboard, MIDI keyboard) → sound, lit keys, and the recorder.
+const live = new LiveInput(piano, (held) => {
   overlay.heldKeys = held;
   invalidate();
 });
+const keyboard = new ComputerKeyboard(store, live);
+const recorder = new Recorder(store, transport);
+live.listen(recorder);
 
 // Repaint (and re-check what's under the mouse) whenever the view or the data changes.
 vp.onChange = () => {
@@ -77,10 +93,27 @@ const session = new Session(store, transport, showDocument);
 
 // --- UI -----------------------------------------------------------------------
 
-const toggleHelp = (show?: boolean) => {
-  helpPanel.hidden = show === undefined ? !helpPanel.hidden : !show;
-};
-helpPanel.addEventListener('click', () => toggleHelp(false));
+const theme = mountThemeToggle(() => {
+  renderer.retheme();
+  invalidate();
+});
+const settings = mountSettings(theme, () => void midi.connect());
+const midi = new MidiInput(live, (text, connected) => settings.setMidiStatus(text, connected));
+prefs.subscribe(invalidate);
+
+/** Transcribed audio (seconds) → notes (beats) at the current tempo, opened as a new roll. */
+function openTranscription(notes: { pitch: number; startSec: number; durationSec: number; velocity: number }[], name: string): void {
+  const beatsPerSec = store.bpm / 60;
+  void session.importNotes(
+    notes.map((n) => ({
+      pitch: n.pitch,
+      start: n.startSec * beatsPerSec,
+      duration: Math.max(1 / 64, n.durationSec * beatsPerSec),
+      velocity: n.velocity,
+    })),
+    name,
+  );
+}
 
 function toggleSidebar(): void {
   const hidden = document.body.classList.toggle('sidebar-hidden');
@@ -88,21 +121,30 @@ function toggleSidebar(): void {
 }
 if (storageGet('piano:sidebar') === 'hidden') document.body.classList.add('sidebar-hidden');
 
-const bar = mountTransportBar(store, transport, { onHelp: () => toggleHelp(), onKeys: () => keyboard.toggle() });
+const bar = mountTransportBar(store, transport, {
+  onKeys: () => keyboard.toggle(),
+  onRecord: () => recorder.toggle(),
+  onTranscribe: () => openTranscribeDialog(openTranscription),
+});
 const fileBar = mountFileBar(session, { onToggleSidebar: toggleSidebar });
 mountSidebar(session);
-const closePopovers = mountTools(store);
-mountThemeToggle(() => {
-  renderer.retheme();
-  invalidate();
-});
+const closeTools = mountTools(store);
+const closeColors = mountColors(store);
 installShortcuts({
   store,
   transport,
   vp,
-  toggleHelp,
-  closePopovers,
+  toggleHelp: settings.toggle,
+  closePopovers: () => {
+    closeTools();
+    closeColors();
+  },
   keyboard,
+  actions: {
+    record: () => recorder.toggle(),
+    metronome: () => prefs.set({ metronome: !prefs.value.metronome }),
+    falling: () => store.setView(store.view === 'falling' ? 'roll' : 'falling'),
+  },
   file: { save: (asCopy) => void session.save(asCopy), open: fileBar.openFilePicker },
 });
 
@@ -114,6 +156,7 @@ window.addEventListener('beforeunload', (e) => {
 bar.setStatus('loading');
 piano.load(`${import.meta.env.BASE_URL}samples/salamander/`).then((s) => bar.setStatus(s));
 void session.init();
+void midi.autoConnect();
 
 // --- layout & frame loop -----------------------------------------------------
 
@@ -139,7 +182,8 @@ function frame(): void {
   if (store.playing) {
     const beat = transport.currentBeat();
     store.setPosition(beat);
-    follow.tick(beat);
+    if (store.view === 'roll') follow.tick(beat);
+    if (store.recording) recorder.tick(beat);
   }
   const beats = Math.max(MIN_BARS * BEATS_PER_BAR, lastNoteEnd, store.position) + TAIL_BARS * BEATS_PER_BAR;
   vp.contentBeats = Math.ceil(beats / BEATS_PER_BAR) * BEATS_PER_BAR;
@@ -153,5 +197,5 @@ function frame(): void {
 requestAnimationFrame(frame);
 
 if (import.meta.env.DEV) {
-  Object.assign(window, { __piano: { store, vp, transport, piano, overlay, session, keyboard, layout } });
+  Object.assign(window, { __piano: { store, vp, transport, piano, overlay, session, keyboard, layout, live, midi, recorder } });
 }

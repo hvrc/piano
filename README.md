@@ -40,6 +40,14 @@ Press `?` (or the ? button) in the app to see every shortcut.
 | Tracks | Edit the name in the top bar, then `⌘S` saves (`⇧⌘S` saves a copy). The dot means unsaved changes. The sidebar lists saved tracks: click one to open it, hover for download and delete (click delete twice). **+ New** starts an empty roll. You're asked before unsaved work is discarded |
 | MIDI | The ↓ button downloads the roll as a `.mid` file. The ↑ button (`⌘O`), or dropping a `.mid` on the window, opens one as a new unsaved roll. Format 0/1 files are read with all channels merged and GM drums dropped. Exports are format 0 at 480 PPQ with tempo, 4/4 and the Acoustic Grand program |
 
+| Settings | The ⚙ button (or `?`) opens **Settings**: theme, a default note colour (remembered in this browser for every session), the MIDI keyboard connection, the sound status, and all shortcuts |
+| Note colours | Select notes and pick a colour from the palette button. Colours are saved with the track; ∅ resets to the default colour. Coloured notes keep their colour when selected and get an outline |
+| MIDI keyboard | Settings → **Connect MIDI keyboard** (Chrome/Edge ask for permission once; after that it reconnects automatically). Velocity and the sustain pedal (CC 64) work |
+| Recording | **Record** (● or `R`/`F9`) starts playback and writes whatever you play — computer keyboard or MIDI keyboard — into the roll at the beat you heard it. Held notes grow live; the pedal extends them; a take is one undo step. Press Record again (or pause) to stop |
+| Metronome | The ⏱ button (or `O`) clicks on every beat while playing or recording, accented on each bar's downbeat. Remembered |
+| Synthesia mode | The 🎹 button (or `V`; `Esc` returns) shows your notes falling onto a piano keyboard, in their colours, with keys lighting up as they play. Click to play/pause |
+| Transcribe audio | The 🎙 button records a piano from the microphone (or opens an audio file) and, after recording, turns it into notes with Spotify's Basic Pitch model, running in the browser — nothing is uploaded. "Clean" detection (default) avoids extra notes; "Sensitive" catches soft notes. The result opens as a new unsaved roll at the current tempo |
+
 Octave naming follows Live: MIDI 60 = **C3**, full range C-2 (0) to G8 (127).
 
 Playback follows the playhead like Live 12's "Scroll" follow mode: once the playhead reaches the middle of the view it stays there and the grid scrolls smoothly underneath. A loop that fits on screen is kept in view instead, so the playhead cycles inside it. If you scroll the playhead out of sight, following pauses until it's visible again.
@@ -129,6 +137,12 @@ gcloud iam service-accounts add-iam-policy-binding <deployer-sa> --role=roles/ia
 
 Then copy `.github/workflows/deploy.yml`.
 
+## Credits
+
+- Piano: Salamander Grand Piano V3 by Alexander Holm (CC-BY 3.0).
+- Transcription: [Basic Pitch](https://github.com/spotify/basic-pitch-ts) by Spotify (Apache-2.0); the model files are served from `public/models/basic-pitch`, and the model plus TensorFlow.js load only when you transcribe.
+- Icons: Google Material Symbols (Apache-2.0).
+
 ## Not built (on purpose)
 
-Multiple tracks/instruments, mixer, recording, effects, MIDI hardware input, automation, accounts, and anything else from a full DAW.
+Multiple tracks/instruments, mixer, effects, automation, accounts, and anything else from a full DAW.

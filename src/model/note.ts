@@ -7,6 +7,7 @@ export interface NoteData {
   start: number; // beats
   duration: number; // beats
   velocity: number; // 1–127
+  color?: string; // '#rrggbb'; absent = the default note colour
 }
 
 /** A note in the editor: content plus a stable identity for selection and undo. */

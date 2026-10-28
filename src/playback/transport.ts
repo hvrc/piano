@@ -8,6 +8,7 @@
 import { audibleTime, getAudioContext, unlockAudio } from '../audio/context';
 import type { Instrument } from '../audio/instrument';
 import type { Store } from '../state/store';
+import { BEATS_PER_BAR } from '../timeline/grid';
 
 const TICK_MS = 25;
 const LOOKAHEAD_S = 0.12;
@@ -25,6 +26,9 @@ export class Transport {
   private segments: Segment[] = [];
   private scheduledUntil = 0; // beats, within the newest segment
   private timer = 0;
+
+  /** Metronome: when `enabled()` is true, `click` is scheduled on every beat (accent on bar starts). */
+  metronome: { enabled: () => boolean; click: (when: number, accent: boolean) => void } | null = null;
 
   /** Called when playback starts or the playhead jumps (so the view can follow). */
   onJump: (beat: number) => void = () => {};
@@ -137,6 +141,11 @@ export class Transport {
   }
 
   private schedule(from: number, until: number, loopEnd: number | null): void {
+    if (this.metronome?.enabled()) {
+      for (let b = Math.ceil(from - EPS); b < until - EPS; b++) {
+        this.metronome.click(this.timeOf(b), b % BEATS_PER_BAR === 0);
+      }
+    }
     for (const n of this.store.notes) {
       if (n.start < from - EPS || n.start >= until - EPS) continue;
       const end = loopEnd === null ? n.start + n.duration : Math.min(n.start + n.duration, loopEnd);

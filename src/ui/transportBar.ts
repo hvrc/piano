@@ -6,6 +6,7 @@ import { formatPosition, GRID_OPTIONS } from '../timeline/grid';
 import { MAX_PITCH, pitchName } from '../music/pitch';
 import { MAX_BPM, MIN_BPM } from '../model/track';
 import { $ } from './dom';
+import { prefs } from '../state/prefs';
 
 export interface TransportBar {
   setStatus(status: PianoStatus): void;
@@ -14,7 +15,7 @@ export interface TransportBar {
 export function mountTransportBar(
   store: Store,
   transport: Transport,
-  opts: { onHelp: () => void; onKeys: () => void },
+  opts: { onKeys: () => void; onRecord: () => void; onTranscribe: () => void },
 ): TransportBar {
   const play = $<HTMLButtonElement>('btn-play');
   const toStart = $<HTMLButtonElement>('btn-start');
@@ -25,7 +26,9 @@ export function mountTransportBar(
   const triplet = $<HTMLButtonElement>('btn-triplet');
   const boneless = $<HTMLButtonElement>('btn-boneless');
   const status = $<HTMLSpanElement>('status');
-  const help = $<HTMLButtonElement>('btn-help');
+  const record = $<HTMLButtonElement>('btn-record');
+  const metronome = $<HTMLButtonElement>('btn-metronome');
+  const falling = $<HTMLButtonElement>('btn-falling');
   const keys = $<HTMLButtonElement>('btn-keys');
   const loop = $<HTMLButtonElement>('btn-loop');
   const keysInfo = $<HTMLSpanElement>('keys-info');
@@ -41,7 +44,10 @@ export function mountTransportBar(
   loop.addEventListener('click', () => store.setLoop({ enabled: !store.loop.enabled }));
   triplet.addEventListener('click', () => store.setGrid({ triplet: !store.grid.triplet }));
   boneless.addEventListener('click', () => store.setGrid({ snap: !store.grid.snap }));
-  help.addEventListener('click', opts.onHelp);
+  record.addEventListener('click', opts.onRecord);
+  metronome.addEventListener('click', () => prefs.set({ metronome: !prefs.value.metronome }));
+  falling.addEventListener('click', () => store.setView(store.view === 'falling' ? 'roll' : 'falling'));
+  $('btn-transcribe').addEventListener('click', opts.onTranscribe);
   keys.addEventListener('click', opts.onKeys);
 
   for (const o of GRID_OPTIONS) grid.add(new Option(o.label, String(o.value)));
@@ -110,6 +116,9 @@ export function mountTransportBar(
     grid.value = String(store.grid.division);
     triplet.classList.toggle('on', store.grid.triplet);
     boneless.classList.toggle('on', !store.grid.snap);
+    record.classList.toggle('on', store.recording);
+    metronome.classList.toggle('on', prefs.value.metronome);
+    falling.classList.toggle('on', store.view === 'falling');
     const kb = store.keyboard;
     keys.classList.toggle('on', kb.enabled);
     keysInfo.textContent = kb.enabled ? `${pitchName(kb.base)} · ${kb.velocity}` : '';
@@ -119,6 +128,7 @@ export function mountTransportBar(
   };
   // The position changes every frame while playing; only the readout depends on it.
   store.subscribe((kind: ChangeKind) => (kind === 'position' ? syncPosition() : sync()));
+  prefs.subscribe(sync);
   sync();
 
   return {

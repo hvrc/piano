@@ -244,6 +244,11 @@ export class Editor {
 
   private onDown(e: PointerEvent): void {
     if (e.button !== 0) return;
+    if (this.store.view === 'falling') {
+      unlockAudio();
+      this.transport.toggle(); // Synthesia mode: click to play / pause
+      return;
+    }
     this.syncMods(e);
     unlockAudio();
     this.canvas.setPointerCapture(e.pointerId);
@@ -415,6 +420,10 @@ export class Editor {
   // ------------------------------------------------------------ pointer move
 
   private onMove(e: PointerEvent): void {
+    if (this.store.view === 'falling') {
+      if (this.canvas.style.cursor !== 'pointer') this.canvas.style.cursor = 'pointer';
+      return;
+    }
     this.syncMods(e);
     const p = this.local(e);
     this.last = p;
@@ -805,6 +814,7 @@ export class Editor {
 
   private onWheel(e: WheelEvent): void {
     e.preventDefault();
+    if (this.store.view === 'falling') return;
     const p = this.local(e);
     const g = this.layout.toGrid(p);
     const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? this.vp.height : 1;

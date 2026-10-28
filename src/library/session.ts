@@ -210,6 +210,15 @@ export class Session {
     this.emit();
   }
 
+  /** Open notes made elsewhere (e.g. transcribed audio) as a new, unsaved roll. */
+  async importNotes(notes: NoteData[], name: string): Promise<void> {
+    if (!(await this.confirmDiscard())) return;
+    this.replaceDocument(notes, this.store.bpm);
+    this.detach(false);
+    this.name = name;
+    this.emit();
+  }
+
   download(): void {
     const name = this.name.trim() || 'Untitled';
     saveFile(`${fileSafe(name)}.mid`, encodeMidi({ name, bpm: this.store.bpm, notes: this.store.notes.map(toData) }));

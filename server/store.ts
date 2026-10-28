@@ -17,17 +17,24 @@ export interface TrackStore {
 
 interface StoredTrack extends Omit<Track, 'notes'> {
   n: number[];
+  /** Note colours, index-aligned with the notes ('' = default); omitted when no note is coloured. */
+  k?: string[];
 }
 
 function pack(t: Track): StoredTrack {
   const { notes, ...rest } = t;
-  return { ...rest, n: notes.flatMap((x) => [x.pitch, x.start, x.duration, x.velocity]) };
+  const stored: StoredTrack = { ...rest, n: notes.flatMap((x) => [x.pitch, x.start, x.duration, x.velocity]) };
+  if (notes.some((x) => x.color)) stored.k = notes.map((x) => x.color ?? '');
+  return stored;
 }
 
 function unpack(s: StoredTrack): Track {
   const notes: NoteData[] = [];
   for (let i = 0; i + 3 < s.n.length; i += 4) {
-    notes.push({ pitch: s.n[i], start: s.n[i + 1], duration: s.n[i + 2], velocity: s.n[i + 3] });
+    const note: NoteData = { pitch: s.n[i], start: s.n[i + 1], duration: s.n[i + 2], velocity: s.n[i + 3] };
+    const color = s.k?.[i / 4];
+    if (color) note.color = color;
+    notes.push(note);
   }
   return {
     id: s.id,

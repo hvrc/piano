@@ -4,6 +4,7 @@ import { MAX_VELOCITY, MIN_VELOCITY } from '../src/model/note.ts';
 import type { NoteData } from '../src/model/note.ts';
 import { MAX_BEAT, MAX_BPM, MAX_NOTES, MIN_BPM, type LoopSettings, type TrackRecord } from '../src/model/track.ts';
 import { isValidPitch } from '../src/music/pitch.ts';
+import { NOTE_COLOR } from '../src/model/colors.ts';
 
 export type Track = TrackRecord;
 export { TRACK_ID } from '../src/model/track.ts';
@@ -32,7 +33,12 @@ export function parseTrack(id: string, body: unknown): Track {
       isBeat(o.duration) && o.duration > 0 &&
       Number.isInteger(o.velocity) && (o.velocity as number) >= MIN_VELOCITY && (o.velocity as number) <= MAX_VELOCITY;
     if (!ok) throw new ValidationError(`Note ${i} is invalid.`);
-    return { pitch: o.pitch as number, start: o.start as number, duration: o.duration as number, velocity: o.velocity as number };
+    if (o.color !== undefined && (typeof o.color !== 'string' || !NOTE_COLOR.test(o.color))) {
+      throw new ValidationError(`Note ${i} has an invalid colour.`);
+    }
+    const note: NoteData = { pitch: o.pitch as number, start: o.start as number, duration: o.duration as number, velocity: o.velocity as number };
+    if (o.color) note.color = (o.color as string).toLowerCase();
+    return note;
   });
 
   let loop: LoopSettings | undefined;

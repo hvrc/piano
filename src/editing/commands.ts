@@ -49,6 +49,14 @@ export function resizeSelected(store: Store, beats: number): void {
   updateSelected(store, (n) => ({ ...n, duration: Math.max(Math.min(min, n.duration), n.duration + beats) }));
 }
 
+/** Colour the selected notes (null = back to the default colour). */
+export function colorSelected(store: Store, color: string | null): void {
+  updateSelected(store, (n) => {
+    const { color: _old, ...rest } = n;
+    return color ? { ...rest, color } : rest;
+  });
+}
+
 export function changeVelocity(store: Store, delta: number): void {
   updateSelected(store, (n) => ({ ...n, velocity: clampVelocity(n.velocity + delta) }));
 }

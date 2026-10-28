@@ -100,6 +100,19 @@ test('stores the loop with the track', async () => {
   await call('DELETE', `/api/tracks/${id}`);
 });
 
+test('keeps note colours, and rejects malformed ones', async () => {
+  const id = randomUUID();
+  const notes = [
+    { pitch: 60, start: 0, duration: 1, velocity: 100, color: '#6eaecd' },
+    { pitch: 62, start: 1, duration: 1, velocity: 100 },
+  ];
+  assert.equal((await call('PUT', `/api/tracks/${id}`, track({ notes }))).status, 200);
+  assert.deepEqual((await find(id)).notes, notes);
+  const bad = [{ ...notes[0], color: 'blue' }];
+  assert.equal((await call('PUT', `/api/tracks/${id}`, track({ notes: bad }))).status, 400);
+  await call('DELETE', `/api/tracks/${id}`);
+});
+
 test('rejects malformed tracks', async () => {
   const id = randomUUID();
   const bad = [

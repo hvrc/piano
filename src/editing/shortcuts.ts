@@ -14,6 +14,7 @@ export interface ShortcutContext {
   toggleHelp: (show?: boolean) => void;
   closePopovers: () => void;
   keyboard: ComputerKeyboard;
+  actions: { record: () => void; metronome: () => void; falling: () => void };
   file: { save: (asCopy: boolean) => void; open: () => void };
 }
 
@@ -88,9 +89,18 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
       return true;
     case 'b': store.setDrawMode(!store.drawMode); return true;
     case 'l': store.setLoop({ enabled: !store.loop.enabled }); return true;
+    case 'r':
+    case 'F9': c.actions.record(); return true; // F9 is Live's record key
+    case 'o': c.actions.metronome(); return true;
+    case 'v': c.actions.falling(); return true;
     case 'Delete':
     case 'Backspace': cmd.deleteSelected(store); return true;
-    case 'Escape': store.setSelection([]); c.toggleHelp(false); c.closePopovers(); return true;
+    case 'Escape':
+      if (store.view === 'falling') store.setView('roll');
+      store.setSelection([]);
+      c.toggleHelp(false);
+      c.closePopovers();
+      return true;
     case '?': c.toggleHelp(); return true;
     case 'Home': transport.seek(0); return true;
     case 'End': {
