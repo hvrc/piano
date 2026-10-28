@@ -1,10 +1,9 @@
 // Pure note transforms (no app state), so they can be unit-tested directly in Node.
+import { clampVelocity, type NoteData } from '../model/note.ts';
 
-interface TimedNote {
-  start: number; // beats
-  duration: number; // beats
-  velocity: number;
-}
+const EPS = 1e-9;
+
+type TimedNote = Pick<NoteData, 'start' | 'duration' | 'velocity'>;
 
 export interface HumanizeOptions {
   timingMs: number; // maximum nudge either way
@@ -29,7 +28,7 @@ export function humanize<T extends TimedNote>(
   const maxBeats = (opts.timingMs / 1000) * (bpm / 60);
   return notes.map((n) => {
     const start = Math.max(0, n.start + jitter(random) * maxBeats);
-    const velocity = Math.max(1, Math.min(127, Math.round(n.velocity + jitter(random) * opts.velocity)));
+    const velocity = clampVelocity(n.velocity + jitter(random) * opts.velocity);
     return { ...n, start, velocity };
   });
 }
@@ -42,7 +41,7 @@ export function humanize<T extends TimedNote>(
 export function legato<T extends TimedNote>(notes: T[]): T[] {
   const starts = [...new Set(notes.map((n) => n.start))].sort((a, b) => a - b);
   return notes.map((n) => {
-    const next = starts.find((s) => s > n.start + 1e-9);
+    const next = starts.find((s) => s > n.start + EPS);
     return next === undefined ? n : { ...n, duration: next - n.start };
   });
 }

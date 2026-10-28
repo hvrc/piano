@@ -1,5 +1,7 @@
 // One shared AudioContext. Browsers start it suspended until a user gesture.
 
+import type { Instrument, Voice } from './instrument';
+
 let ctx: AudioContext | null = null;
 
 export function getAudioContext(): AudioContext {
@@ -20,4 +22,10 @@ export function audibleTime(c: AudioContext): number {
     }
   }
   return c.currentTime - (c.outputLatency || c.baseLatency || 0);
+}
+
+/** Start a note right now (for auditioning), unlocking audio on first use. */
+export function playNow(instrument: Instrument, pitch: number, velocity: number): Voice {
+  unlockAudio();
+  return instrument.noteOn(pitch, velocity, getAudioContext().currentTime);
 }

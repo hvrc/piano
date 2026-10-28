@@ -4,10 +4,12 @@
 //   number array [pitch, start, duration, velocity, ...] so large tracks stay compact.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { NoteData, Track } from './validate.ts';
+import type { NoteData } from '../src/model/note.ts';
+import type { Track } from './validate.ts';
 
 export interface TrackStore {
   list(library: string): Promise<Track[]>;
+  get(library: string, id: string): Promise<Track | null>;
   count(library: string): Promise<number>;
   put(library: string, track: Track): Promise<void>;
   remove(library: string, id: string): Promise<void>;
@@ -78,6 +80,11 @@ export class FileStore implements TrackStore {
     return Object.values(lib).map(unpack).sort(newestFirst);
   }
 
+  async get(library: string, id: string) {
+    const t = (await this.load())[library]?.[id];
+    return t ? unpack(t) : null;
+  }
+
   async count(library: string) {
     return Object.keys((await this.load())[library] ?? {}).length;
   }
@@ -106,6 +113,10 @@ export async function createFirestoreStore(databaseId: string): Promise<TrackSto
     async list(library) {
       const snap = await tracks(library).get();
       return snap.docs.map((d) => unpack(d.data() as StoredTrack)).sort(newestFirst);
+    },
+    async get(library, id) {
+      const doc = await tracks(library).doc(id).get();
+      return doc.exists ? unpack(doc.data() as StoredTrack) : null;
     },
     async count(library) {
       const agg = await tracks(library).count().get();

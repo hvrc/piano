@@ -7,15 +7,8 @@ export interface DialogButton {
   danger?: boolean;
 }
 
-let openCount = 0;
-
-export function isModalOpen(): boolean {
-  return openCount > 0;
-}
-
 export function choose(title: string, detail: string, buttons: DialogButton[]): Promise<string> {
   return new Promise((resolve) => {
-    openCount++;
     const overlay = document.createElement('div');
     overlay.className = 'dialog';
     overlay.innerHTML = `<div class="dialog-card" role="alertdialog" aria-modal="true">
@@ -25,7 +18,6 @@ export function choose(title: string, detail: string, buttons: DialogButton[]): 
     const row = overlay.querySelector('.dialog-buttons')!;
 
     const close = (value: string) => {
-      openCount--;
       window.removeEventListener('keydown', onKey, true);
       overlay.remove();
       resolve(value);

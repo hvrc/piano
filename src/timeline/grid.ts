@@ -28,6 +28,10 @@ export function snapFloor(beat: number, step: number): number {
   return Math.floor(beat / step + EPS) * step;
 }
 
+export function snapCeil(beat: number, step: number): number {
+  return Math.ceil(beat / step - EPS) * step;
+}
+
 export function snapRound(beat: number, step: number): number {
   return Math.round(beat / step) * step;
 }

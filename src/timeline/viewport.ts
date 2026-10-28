@@ -19,6 +19,9 @@ export class Viewport {
   private rowF = 16;
   private pendingCenter: number | null = null;
 
+  /** Called after any scroll, zoom or resize, so the app can repaint in one place. */
+  onChange: () => void = () => {};
+
   get rowHeight(): number {
     return Math.round(this.rowF);
   }
@@ -51,6 +54,7 @@ export class Viewport {
   scrollTo(x: number, y: number): void {
     this.scrollX = clamp(x, 0, this.maxScrollX);
     this.scrollY = clamp(y, 0, this.maxScrollY);
+    this.onChange();
   }
 
   scrollBy(dx: number, dy: number): void {

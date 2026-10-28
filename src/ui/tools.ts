@@ -3,10 +3,13 @@ import * as cmd from '../editing/commands';
 import type { HumanizeOptions } from '../editing/transforms';
 import type { Store } from '../state/store';
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+import { storageGetJson, storageSet } from '../util/storage';
+import { $ } from './dom';
+
 const STORAGE = 'piano:humanize';
 
-export function mountTools(store: Store): void {
+/** Returns a function that closes the Humanize popover (Escape is handled by the shortcuts). */
+export function mountTools(store: Store): () => void {
   $('btn-legato').addEventListener('click', () => cmd.legatoNotes(store));
 
   const pop = $('humanize-pop');
@@ -15,7 +18,7 @@ export function mountTools(store: Store): void {
   const timingOut = $<HTMLOutputElement>('hum-timing-out');
   const velocityOut = $<HTMLOutputElement>('hum-velocity-out');
 
-  const opts: HumanizeOptions = { timingMs: 15, velocity: 0, ...load() };
+  const opts: HumanizeOptions = { timingMs: 15, velocity: 0, ...storageGetJson<HumanizeOptions>(STORAGE) };
   timing.value = String(opts.timingMs);
   velocity.value = String(opts.velocity);
   const sync = () => {
@@ -23,11 +26,7 @@ export function mountTools(store: Store): void {
     opts.velocity = Number(velocity.value);
     timingOut.textContent = `±${opts.timingMs} ms`;
     velocityOut.textContent = `±${opts.velocity}`;
-    try {
-      localStorage.setItem(STORAGE, JSON.stringify(opts));
-    } catch {
-      // only a convenience
-    }
+    storageSet(STORAGE, JSON.stringify(opts));
   };
   timing.addEventListener('input', sync);
   velocity.addEventListener('input', sync);
@@ -39,18 +38,8 @@ export function mountTools(store: Store): void {
   document.addEventListener('pointerdown', (e) => {
     if (!pop.hidden && !(e.target as Element).closest('.pop-wrap')) pop.hidden = true;
   });
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') pop.hidden = true;
-  });
   // Sliders shouldn't keep keyboard focus (Space must stay play/pause).
   for (const el of [timing, velocity]) el.addEventListener('change', () => el.blur());
+  return () => (pop.hidden = true);
 }
 
-function load(): Partial<HumanizeOptions> {
-  try {
-    const v = JSON.parse(localStorage.getItem(STORAGE) ?? '{}');
-    return typeof v === 'object' && v ? v : {};
-  } catch {
-    return {};
-  }
-}

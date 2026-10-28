@@ -8,22 +8,22 @@
 //  - Velocity lane: drag a stem up/down (selected stems move together); in draw mode, sweep
 //    across the lane to paint velocities.
 //  - Keyboard: click/drag to audition; Shift-click selects every note of that key.
-//  - Ruler: top lane holds the loop brace (drag body to move, edges to resize, empty lane to draw a
-//    new loop, click to switch it on/off); middle strip scrubs the playhead; bottom strip drag
-//    zooms (vertical) / scrolls (horizontal).
-import { getAudioContext, unlockAudio } from '../audio/context';
+//  - Ruler: the loop lane holds the loop brace (drag body to move, edges to resize, empty lane to
+//    draw a new loop, click to switch it on/off); the scrub strip moves the playhead; dragging the
+//    beat strip zooms (vertical) / scrolls (horizontal).
+import { getAudioContext, playNow, unlockAudio } from '../audio/context';
 import type { Instrument, Voice } from '../audio/instrument';
-import { clampPitch, MAX_PITCH, MIN_PITCH, PITCH_COUNT } from '../music/pitch';
-import { DEFAULT_VELOCITY, noteEnd, type Note } from '../model/note';
+import { clampPitch, isValidPitch, MAX_PITCH, MIN_PITCH } from '../music/pitch';
+import { clampVelocity, DEFAULT_VELOCITY, noteBounds, noteEnd, type Note } from '../model/note';
 import type { Transport } from '../playback/transport';
-import { KEYS_W, LOOP_H, regionAt as regionAtXY, RULER_H, SCRUB_H, yToVelocity } from '../render/layout';
-import type { NoteZone, Overlay } from '../render/overlay';
+import { KEYS_W, type Layout, type Point, type Region } from '../render/layout';
+import type { Overlay } from '../render/overlay';
 import type { LoopSettings, Store } from '../state/store';
 import { EPS, gridStep, snapFloor, snapRound } from '../timeline/grid';
 import type { Viewport } from '../timeline/viewport';
 import { addNote, deleteNote } from './commands';
 
-const DRAG_THRESHOLD = 3; // px before a click becomes a move/resize
+const DRAG_THRESHOLD = 3; // px before a click becomes a drag
 const DOUBLE_CLICK_MS = 350;
 const EDGE_PX = 7;
 const AUTOSCROLL_MAX = 28; // px per frame
@@ -32,10 +32,8 @@ const PENCIL_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><path d='M3 17l1.2-4.2L13.6 3.4l3 3-9.4 9.4z' fill='white' stroke='black' stroke-width='1.2' stroke-linejoin='round'/><path d='M3 17l1.2-4.2 3 3z' fill='black'/></svg>",
 )}") 3 17, crosshair`;
 
-interface Point {
-  x: number;
-  y: number;
-}
+type NoteZone = 'body' | 'start' | 'end';
+type LoopZone = 'start' | 'end' | 'move' | 'new';
 
 interface Mods {
   alt: boolean;
@@ -43,32 +41,43 @@ interface Mods {
   shift: boolean;
 }
 
-type Drag =
-  | {
-      kind: 'move';
-      cx0: number; // content-space pointer origin
-      cy0: number;
-      started: boolean;
-      anchor: Note;
-      base: Note[];
-      moving: Note[];
-      copyIds: Map<number, number>;
-      selectOnlyOnClick: number | null;
-      lastPitch: number;
-    }
-  | { kind: 'resize'; edge: 'start' | 'end'; cx0: number; started: boolean; anchor: Note; base: Note[]; ids: Set<number> }
-  | { kind: 'marquee'; additive: boolean; baseSel: number[] }
-  | { kind: 'draw'; steps: Map<number, number>; lastStep: number; lastPitch: number; lockPitch: number }
-  | { kind: 'drawFree'; currentId: number; lastStart: number; lockPitch: number }
-  | { kind: 'velocity'; anchor: Note; ids: Set<number>; base: Note[]; started: boolean; y0: number }
-  | { kind: 'velocityPaint'; lastX: number }
-  | { kind: 'erase' }
-  | { kind: 'scrub' }
-  | { kind: 'rulerZoom'; last: Point; moved: boolean; origin: Point }
-  | { kind: 'key'; pitch: number }
-  | { kind: 'loop'; mode: LoopZone; originBeat: number; originX: number; base: LoopSettings; moved: boolean };
+/** Every drag remembers where it began (canvas px) and whether it has passed the threshold. */
+interface DragBase {
+  origin: Point;
+  started: boolean;
+}
 
-type LoopZone = 'start' | 'end' | 'move' | 'new';
+type Drag = DragBase &
+  (
+    | {
+        kind: 'move';
+        anchor: Note;
+        base: Note[];
+        moving: Note[];
+        ids: Set<number>;
+        bounds: { start: number; lo: number; hi: number };
+        copyIds: Map<number, number>;
+        selectOnlyOnClick: number | null;
+        lastPitch: number;
+        scroll0: Point; // viewport scroll at drag start, so autoscroll moves the notes too
+      }
+    | { kind: 'resize'; edge: 'start' | 'end'; anchor: Note; base: Note[]; ids: Set<number>; scroll0: number }
+    | { kind: 'marquee'; additive: boolean; baseSel: number[] }
+    | { kind: 'draw'; steps: Map<number, number>; lastStep: number; lastPitch: number; lockPitch: number }
+    | { kind: 'drawFree'; currentId: number; lastStart: number; lockPitch: number }
+    | { kind: 'velocity'; anchor: Note; ids: Set<number>; base: Note[] }
+    | { kind: 'velocityPaint'; lastX: number }
+    | { kind: 'erase' }
+    | { kind: 'scrub' }
+    | { kind: 'rulerZoom'; last: Point }
+    | { kind: 'key'; pitch: number }
+    | { kind: 'loop'; mode: LoopZone; originBeat: number; base: LoopSettings }
+  );
+
+type DragOf<K extends Drag['kind']> = Extract<Drag, { kind: K }>;
+
+/** Drags that scroll the view when the pointer leaves the grid. */
+const AUTOSCROLLING = new Set<Drag['kind']>(['move', 'resize', 'marquee', 'draw', 'drawFree', 'erase']);
 
 export class Editor {
   private drag: Drag | null = null;
@@ -76,11 +85,13 @@ export class Editor {
   private last: Point = { x: -1, y: -1 };
   private lastDown = { time: 0, x: 0, y: 0 };
   private preview: { pitch: number; voice: Voice } | null = null;
+  private hoverZone: NoteZone | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
     private store: Store,
     private vp: Viewport,
+    private layout: Layout,
     private overlay: Overlay,
     private instrument: Instrument,
     private transport: Transport,
@@ -100,10 +111,6 @@ export class Editor {
     window.addEventListener('blur', () => this.cancelPreview());
   }
 
-  get dragging(): boolean {
-    return this.drag !== null;
-  }
-
   // ------------------------------------------------------------ coordinates
 
   private local(e: { clientX: number; clientY: number }): Point {
@@ -111,17 +118,27 @@ export class Editor {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
+  private region(p: Point): Region {
+    return this.layout.regionAt(p);
+  }
+
   /** Pointer in content space: pixels from beat 0 / the top of pitch 127. */
   private content(p: Point): Point {
-    return { x: p.x - KEYS_W + this.vp.scrollX, y: p.y - RULER_H + this.vp.scrollY };
+    const g = this.layout.toGrid(p);
+    return { x: g.x + this.vp.scrollX, y: g.y + this.vp.scrollY };
   }
 
   private beatAt(p: Point): number {
-    return this.vp.xToBeat(p.x - KEYS_W);
+    return this.vp.xToBeat(this.layout.toGrid(p).x);
   }
 
   private pitchAt(p: Point): number {
-    return this.vp.yToPitch(p.y - RULER_H);
+    return this.vp.yToPitch(this.layout.toGrid(p).y);
+  }
+
+  /** Canvas x of a beat. */
+  private xOf(beat: number): number {
+    return this.vp.beatToX(beat) + KEYS_W;
   }
 
   private get step(): number {
@@ -130,6 +147,28 @@ export class Editor {
 
   private snapping(): boolean {
     return this.store.grid.snap && !this.mods.meta;
+  }
+
+  /** Snap a beat to the grid unless Boneless (or ⌘) is on. */
+  private snap(beat: number, mode: 'round' | 'floor' = 'round'): number {
+    if (!this.snapping()) return beat;
+    return mode === 'round' ? snapRound(beat, this.step) : snapFloor(beat, this.step);
+  }
+
+  /**
+   * True once the pointer has moved past the threshold. The first time, optionally takes an undo
+   * checkpoint, so a plain click never creates an undo step.
+   */
+  private begin(d: Drag, p: Point, checkpoint = true): boolean {
+    if (d.started) return true;
+    if (Math.hypot(p.x - d.origin.x, p.y - d.origin.y) < DRAG_THRESHOLD) return false;
+    d.started = true;
+    if (checkpoint) this.store.checkpoint();
+    return true;
+  }
+
+  private startDrag<T extends Omit<Drag, keyof DragBase>>(p: Point, d: T): void {
+    this.drag = { origin: p, started: false, ...d } as Drag;
   }
 
   private hit(p: Point): { note: Note; zone: NoteZone } | null {
@@ -151,18 +190,13 @@ export class Editor {
     return null;
   }
 
-  private regionAt(x: number, y: number) {
-    return regionAtXY(x, y, this.canvas.clientHeight);
-  }
-
   /** Nearest velocity stem within a few px of the pointer (selected stems win ties). */
   private stemAt(p: Point): Note | null {
     let best: Note | null = null;
     let bestD = 6;
     for (const n of this.store.notes) {
-      const d = Math.abs(this.vp.beatToX(n.start) + KEYS_W - p.x);
-      const sel = this.store.selection.has(n.id);
-      if (d < bestD || (d === bestD && sel)) {
+      const d = Math.abs(this.xOf(n.start) - p.x);
+      if (d < bestD || (d === bestD && this.store.selection.has(n.id))) {
         best = n;
         bestD = d;
       }
@@ -170,53 +204,10 @@ export class Editor {
     return best;
   }
 
-  private downVelocity(p: Point): void {
-    if (this.store.drawMode) {
-      this.store.checkpoint();
-      this.drag = { kind: 'velocityPaint', lastX: p.x };
-      this.paintVelocity(p.x, p.x, p.y);
-      return;
-    }
-    const n = this.stemAt(p);
-    if (!n) return;
-    if (!this.store.selection.has(n.id) && !this.mods.shift) this.store.setSelection([n.id]);
-    else if (!this.store.selection.has(n.id)) this.store.setSelection([...this.store.selection, n.id]);
-    this.overlay.velocityNote = n.id;
-    this.drag = {
-      kind: 'velocity',
-      anchor: n,
-      ids: new Set(this.store.selection),
-      base: this.store.notes,
-      started: false,
-      y0: p.y,
-    };
-  }
-
-  private dragVelocity(d: Extract<Drag, { kind: 'velocity' }>, p: Point): void {
-    if (!d.started) {
-      if (Math.abs(p.y - d.y0) < 2) return;
-      d.started = true;
-      this.store.checkpoint();
-    }
-    // The grabbed stem follows the mouse; other selected notes move by the same amount.
-    const delta = yToVelocity(p.y, this.canvas.clientHeight) - d.anchor.velocity;
-    const clamp = (v: number) => Math.max(1, Math.min(127, v));
-    this.store.setNotes(d.base.map((n) => (d.ids.has(n.id) ? { ...n, velocity: clamp(n.velocity + delta) } : n)));
-  }
-
-  /** Draw-mode sweep: every note whose start lies between the last and current x gets this velocity. */
-  private paintVelocity(x0: number, x1: number, y: number): void {
-    const lo = Math.min(x0, x1) - 3;
-    const hi = Math.max(x0, x1) + 3;
-    const v = yToVelocity(y, this.canvas.clientHeight);
-    let changed = false;
-    const notes = this.store.notes.map((n) => {
-      const x = this.vp.beatToX(n.start) + KEYS_W;
-      if (x < lo || x > hi || n.velocity === v) return n;
-      changed = true;
-      return { ...n, velocity: v };
-    });
-    if (changed) this.store.setNotes(notes);
+  private occupied(pitch: number, start: number, dur: number, except?: number): boolean {
+    return this.store.notes.some(
+      (n) => n.id !== except && n.pitch === pitch && n.start < start + dur - EPS && noteEnd(n) > start + EPS,
+    );
   }
 
   // ------------------------------------------------------------ audition
@@ -224,9 +215,7 @@ export class Editor {
   private audition(pitch: number): void {
     if (this.preview?.pitch === pitch) return;
     this.cancelPreview();
-    unlockAudio();
-    const ctx = getAudioContext();
-    this.preview = { pitch, voice: this.instrument.noteOn(pitch, DEFAULT_VELOCITY, ctx.currentTime) };
+    this.preview = { pitch, voice: playNow(this.instrument, pitch, DEFAULT_VELOCITY) };
     this.overlay.pressedKeys = new Set([pitch]);
   }
 
@@ -253,7 +242,7 @@ export class Editor {
       now - this.lastDown.time < DOUBLE_CLICK_MS && Math.hypot(p.x - this.lastDown.x, p.y - this.lastDown.y) < 6;
     this.lastDown = isDouble ? { time: 0, x: 0, y: 0 } : { time: now, x: p.x, y: p.y };
 
-    switch (this.regionAt(p.x, p.y)) {
+    switch (this.region(p)) {
       case 'grid':
         if (this.store.drawMode) this.downDraw(p);
         else this.downSelect(p, isDouble);
@@ -264,22 +253,15 @@ export class Editor {
       case 'velocity':
         this.downVelocity(p);
         break;
-      case 'ruler':
-        if (p.y < LOOP_H) {
-          this.drag = {
-            kind: 'loop',
-            mode: this.loopZone(p),
-            originBeat: this.beatAt(p),
-            originX: p.x,
-            base: this.store.loop,
-            moved: false,
-          };
-        } else if (p.y < LOOP_H + SCRUB_H) {
-          this.drag = { kind: 'scrub' };
-          this.scrubTo(p);
-        } else {
-          this.drag = { kind: 'rulerZoom', last: p, origin: p, moved: false };
-        }
+      case 'loop':
+        this.startDrag(p, { kind: 'loop', mode: this.loopZone(p), originBeat: this.beatAt(p), base: this.store.loop });
+        break;
+      case 'scrub':
+        this.startDrag(p, { kind: 'scrub' });
+        this.scrubTo(p);
+        break;
+      case 'beat':
+        this.startDrag(p, { kind: 'rulerZoom', last: p });
         break;
     }
     this.updateCursor(p);
@@ -294,9 +276,8 @@ export class Editor {
       if (h) deleteNote(store, h.note.id);
       else {
         const pitch = this.pitchAt(p);
-        if (pitch < MIN_PITCH || pitch > MAX_PITCH) return;
-        const start = this.snapping() ? snapFloor(this.beatAt(p), this.step) : this.beatAt(p);
-        addNote(store, pitch, start, this.step);
+        if (!isValidPitch(pitch)) return;
+        addNote(store, pitch, this.snap(this.beatAt(p), 'floor'), this.step);
         this.audition(pitch);
       }
       return;
@@ -307,7 +288,7 @@ export class Editor {
       if (!additive) store.setSelection([]);
       const c = this.content(p);
       this.overlay.marquee = { x0: c.x, y0: c.y, x1: c.x, y1: c.y };
-      this.drag = { kind: 'marquee', additive, baseSel: [...store.selection] };
+      this.startDrag(p, { kind: 'marquee', additive, baseSel: [...store.selection] });
       return;
     }
 
@@ -320,91 +301,84 @@ export class Editor {
         store.setSelection(sel);
         return;
       }
-      sel.add(id);
-      store.setSelection(sel);
+      store.setSelection(sel.add(id));
     } else if (!store.selection.has(id)) {
       store.setSelection([id]);
     } else {
       selectOnlyOnClick = id; // clicking inside a multi-selection narrows it on release
     }
 
-    const c = this.content(p);
-    if (h.zone === 'body') {
-      this.drag = {
-        kind: 'move',
-        cx0: c.x,
-        cy0: c.y,
-        started: false,
-        anchor: h.note,
-        base: store.notes,
-        moving: store.selectedNotes(),
-        copyIds: new Map(store.selectedNotes().map((n) => [n.id, store.newId()])),
-        selectOnlyOnClick,
-        lastPitch: h.note.pitch,
-      };
-      this.audition(h.note.pitch);
-    } else {
-      this.drag = {
-        kind: 'resize',
-        edge: h.zone,
-        cx0: c.x,
-        started: false,
-        anchor: h.note,
-        base: store.notes,
-        ids: new Set(store.selection),
-      };
-    }
+    if (h.zone !== 'body') return this.startResize(p, h.note, h.zone, store.selection);
+    const moving = store.selectedNotes();
+    this.startDrag(p, {
+      kind: 'move',
+      anchor: h.note,
+      base: store.notes,
+      moving,
+      ids: new Set(moving.map((n) => n.id)),
+      bounds: noteBounds(moving),
+      copyIds: new Map(moving.map((n) => [n.id, store.newId()])),
+      selectOnlyOnClick,
+      lastPitch: h.note.pitch,
+      scroll0: { x: this.vp.scrollX, y: this.vp.scrollY },
+    });
+    this.audition(h.note.pitch);
+  }
+
+  private startResize(p: Point, anchor: Note, edge: 'start' | 'end', ids: Iterable<number>): void {
+    this.startDrag(p, { kind: 'resize', edge, anchor, base: this.store.notes, ids: new Set(ids), scroll0: this.vp.scrollX });
   }
 
   private downDraw(p: Point): void {
+    const { store } = this;
     const h = this.hit(p);
     if (h && h.zone !== 'body') {
       // Edges still resize in draw mode.
-      this.store.setSelection([h.note.id]);
-      this.drag = {
-        kind: 'resize',
-        edge: h.zone,
-        cx0: this.content(p).x,
-        started: false,
-        anchor: h.note,
-        base: this.store.notes,
-        ids: new Set([h.note.id]),
-      };
-      return;
+      store.setSelection([h.note.id]);
+      return this.startResize(p, h.note, h.zone, [h.note.id]);
     }
     if (h) {
-      this.store.checkpoint();
-      this.store.setNotes(this.store.notes.filter((n) => n.id !== h.note.id));
-      this.drag = { kind: 'erase' };
-      return;
+      deleteNote(store, h.note.id);
+      return this.startDrag(p, { kind: 'erase' });
     }
     const pitch = this.pitchAt(p);
-    if (pitch < MIN_PITCH || pitch > MAX_PITCH) return;
-    this.store.checkpoint();
+    if (!isValidPitch(pitch)) return;
+    store.checkpoint();
+    this.overlay.ghost = null;
     if (!this.snapping()) {
       // Boneless: the note starts exactly under the mouse.
-      const start = Math.max(0, this.beatAt(p));
-      const note = this.store.makeNote(pitch, start, this.step);
-      this.store.setNotes([...this.store.notes, note], [note.id]);
-      this.drag = { kind: 'drawFree', currentId: note.id, lastStart: start, lockPitch: pitch };
-      this.audition(pitch);
-      this.overlay.ghost = null;
+      const note = this.addDrawn(pitch, Math.max(0, this.beatAt(p)), this.step, []);
+      if (note) this.startDrag(p, { kind: 'drawFree', currentId: note.id, lastStart: note.start, lockPitch: pitch });
       return;
     }
     const step = this.stepIndex(p);
-    this.drag = { kind: 'draw', steps: new Map(), lastStep: step, lastPitch: pitch, lockPitch: pitch };
+    this.startDrag(p, { kind: 'draw', steps: new Map(), lastStep: step, lastPitch: pitch, lockPitch: pitch });
     this.placeDrawn(step, pitch);
-    this.overlay.ghost = null;
   }
 
   private downKeys(p: Point): void {
     const pitch = this.pitchAt(p);
-    if (pitch < MIN_PITCH || pitch > MAX_PITCH) return;
+    if (!isValidPitch(pitch)) return;
     if (this.mods.shift) {
       this.store.setSelection(this.store.notes.filter((n) => n.pitch === pitch).map((n) => n.id));
     }
-    this.drag = { kind: 'key', pitch };
+    this.startDrag(p, { kind: 'key', pitch });
     this.audition(pitch);
+  }
+
+  private downVelocity(p: Point): void {
+    const { store } = this;
+    if (store.drawMode) {
+      store.checkpoint();
+      this.startDrag(p, { kind: 'velocityPaint', lastX: p.x });
+      this.paintVelocity(p.x, p.x, p.y);
+      return;
+    }
+    const n = this.stemAt(p);
+    if (!n) return;
+    if (!store.selection.has(n.id)) store.setSelection(this.mods.shift ? [...store.selection, n.id] : [n.id]);
+    this.overlay.velocityNote = n.id;
+    this.startDrag(p, { kind: 'velocity', anchor: n, ids: new Set(store.selection), base: store.notes });
   }
 
   // ------------------------------------------------------------ pointer move
@@ -440,25 +414,21 @@ export class Editor {
         return;
       case 'erase': {
         const h = this.hit(p);
-        if (h) this.store.setNotes(this.store.notes.filter((n) => n.id !== h.note.id));
+        if (h) this.store.removeNote(h.note.id);
         return;
       }
       case 'scrub':
         return this.scrubTo(p);
       case 'loop':
         return this.dragLoop(d, p);
-      case 'rulerZoom': {
-        const dx = p.x - d.last.x;
-        const dy = p.y - d.last.y;
-        if (Math.abs(p.x - d.origin.x) + Math.abs(p.y - d.origin.y) > DRAG_THRESHOLD) d.moved = true;
-        if (d.moved) {
+      case 'rulerZoom':
+        if (this.begin(d, p, false)) {
           // Drag down zooms in around the pointer; drag sideways scrolls.
-          this.vp.zoomX(Math.exp(dy * 0.012), p.x - KEYS_W);
-          this.vp.scrollBy(-dx, 0);
+          this.vp.zoomX(Math.exp((p.y - d.last.y) * 0.012), this.layout.toGrid(p).x);
+          this.vp.scrollBy(d.last.x - p.x, 0);
         }
         d.last = p;
         return;
-      }
       case 'key': {
         const pitch = clampPitch(this.pitchAt(p));
         if (pitch !== d.pitch) {
@@ -471,37 +441,25 @@ export class Editor {
     }
   }
 
-  private dragMove(d: Extract<Drag, { kind: 'move' }>, p: Point): void {
-    const c = this.content(p);
-    if (!d.started) {
-      if (Math.hypot(c.x - d.cx0, c.y - d.cy0) < DRAG_THRESHOLD) return;
-      d.started = true;
-      this.store.checkpoint();
-    }
+  private dragMove(d: DragOf<'move'>, p: Point): void {
+    if (!this.begin(d, p)) return;
     const vp = this.vp;
-    const rawBeat = (c.x - d.cx0) / vp.pxPerBeat;
-    let newStart = d.anchor.start + rawBeat;
-    if (this.snapping()) newStart = snapRound(newStart, this.step);
-    let dBeat = newStart - d.anchor.start;
-    let dPitch = Math.floor(d.cy0 / vp.rowHeight) - Math.floor(c.y / vp.rowHeight);
-
-    const minStart = Math.min(...d.moving.map((n) => n.start));
-    if (minStart + dBeat < 0) dBeat = -minStart;
-    const lo = Math.min(...d.moving.map((n) => n.pitch));
-    const hi = Math.max(...d.moving.map((n) => n.pitch));
-    dPitch = Math.max(MIN_PITCH - lo, Math.min(MAX_PITCH - hi, dPitch));
+    // Content-space delta, so autoscrolling while holding still keeps moving the notes.
+    const dx = p.x - d.origin.x + vp.scrollX - d.scroll0.x;
+    const dy = p.y - d.origin.y + vp.scrollY - d.scroll0.y;
+    const y0 = d.origin.y + d.scroll0.y;
+    let dBeat = this.snap(d.anchor.start + dx / vp.pxPerBeat) - d.anchor.start;
+    let dPitch = Math.floor(y0 / vp.rowHeight) - Math.floor((y0 + dy) / vp.rowHeight);
+    dBeat = Math.max(-d.bounds.start, dBeat);
+    dPitch = Math.max(MIN_PITCH - d.bounds.lo, Math.min(MAX_PITCH - d.bounds.hi, dPitch));
 
     const shift = (n: Note, id = n.id): Note => ({ ...n, id, start: n.start + dBeat, pitch: n.pitch + dPitch });
-    const copy = this.mods.alt; // Option-drag copies; can be toggled mid-drag
-    if (copy) {
+    if (this.mods.alt) {
+      // Option-drag copies; it can be toggled mid-drag.
       const copies = d.moving.map((n) => shift(n, d.copyIds.get(n.id)!));
       this.store.setNotes([...d.base, ...copies], copies.map((n) => n.id));
     } else {
-      const ids = new Set(d.moving.map((n) => n.id));
-      this.store.setNotes(
-        d.base.map((n) => (ids.has(n.id) ? shift(n) : n)),
-        ids,
-      );
+      this.store.setNotes(d.base.map((n) => (d.ids.has(n.id) ? shift(n) : n)), d.ids);
     }
     const pitch = d.anchor.pitch + dPitch;
     if (pitch !== d.lastPitch) {
@@ -510,41 +468,26 @@ export class Editor {
     }
   }
 
-  private dragResize(d: Extract<Drag, { kind: 'resize' }>, p: Point): void {
-    const c = this.content(p);
-    if (!d.started) {
-      if (Math.abs(c.x - d.cx0) < DRAG_THRESHOLD) return;
-      d.started = true;
-      this.store.checkpoint();
-    }
-    const rawBeat = (c.x - d.cx0) / this.vp.pxPerBeat;
-    const snap = this.snapping();
-    const step = this.step;
-    const minDur = (n: Note) => (snap ? Math.min(step, n.duration) : 1 / 128);
+  private dragResize(d: DragOf<'resize'>, p: Point): void {
+    if (!this.begin(d, p)) return;
+    const rawBeat = (p.x - d.origin.x + this.vp.scrollX - d.scroll0) / this.vp.pxPerBeat;
+    const snapping = this.snapping();
+    const minDur = (n: Note) => (snapping ? Math.min(this.step, n.duration) : 1 / 128);
+    const edgeOf = d.edge === 'end' ? noteEnd : (n: Note) => n.start;
+    const delta = this.snap(edgeOf(d.anchor) + rawBeat) - edgeOf(d.anchor);
 
-    let notes: Note[];
-    if (d.edge === 'end') {
-      let newEnd = noteEnd(d.anchor) + rawBeat;
-      if (snap) newEnd = snapRound(newEnd, step);
-      const dEnd = newEnd - noteEnd(d.anchor);
-      notes = d.base.map((n) =>
-        d.ids.has(n.id) ? { ...n, duration: Math.max(minDur(n), n.duration + dEnd) } : n,
-      );
-    } else {
-      let newStart = d.anchor.start + rawBeat;
-      if (snap) newStart = snapRound(newStart, step);
-      const dStart = newStart - d.anchor.start;
-      notes = d.base.map((n) => {
+    this.store.setNotes(
+      d.base.map((n) => {
         if (!d.ids.has(n.id)) return n;
+        if (d.edge === 'end') return { ...n, duration: Math.max(minDur(n), n.duration + delta) };
         const end = noteEnd(n);
-        const start = Math.max(0, Math.min(end - minDur(n), n.start + dStart));
+        const start = Math.max(0, Math.min(end - minDur(n), n.start + delta));
         return { ...n, start, duration: end - start };
-      });
-    }
-    this.store.setNotes(notes);
+      }),
+    );
   }
 
-  private dragMarquee(d: Extract<Drag, { kind: 'marquee' }>, p: Point): void {
+  private dragMarquee(d: DragOf<'marquee'>, p: Point): void {
     const m = this.overlay.marquee!;
     const c = this.content(p);
     m.x1 = c.x;
@@ -552,19 +495,60 @@ export class Editor {
     const vp = this.vp;
     const b0 = Math.min(m.x0, m.x1) / vp.pxPerBeat;
     const b1 = Math.max(m.x0, m.x1) / vp.pxPerBeat;
-    const pTop = PITCH_COUNT - 1 - Math.floor(Math.min(m.y0, m.y1) / vp.rowHeight);
-    const pBottom = PITCH_COUNT - 1 - Math.floor(Math.max(m.y0, m.y1) / vp.rowHeight);
+    const pTop = vp.yToPitch(Math.min(m.y0, m.y1) - vp.scrollY);
+    const pBottom = vp.yToPitch(Math.max(m.y0, m.y1) - vp.scrollY);
     const hits = this.store.notes
       .filter((n) => n.pitch <= pTop && n.pitch >= pBottom && n.start < b1 && noteEnd(n) > b0)
       .map((n) => n.id);
     this.store.setSelection(d.additive ? new Set([...d.baseSel, ...hits]) : hits);
   }
 
+  private dragVelocity(d: DragOf<'velocity'>, p: Point): void {
+    if (!this.begin(d, p)) return;
+    // The grabbed stem follows the mouse; other selected notes move by the same amount.
+    const delta = this.layout.yToVelocity(p.y) - d.anchor.velocity;
+    this.store.setNotes(d.base.map((n) => (d.ids.has(n.id) ? { ...n, velocity: clampVelocity(n.velocity + delta) } : n)));
+  }
+
+  /** Draw-mode sweep: every note whose start lies between the last and current x gets this velocity. */
+  private paintVelocity(x0: number, x1: number, y: number): void {
+    const lo = Math.min(x0, x1) - 3;
+    const hi = Math.max(x0, x1) + 3;
+    const v = this.layout.yToVelocity(y);
+    let changed = false;
+    const notes = this.store.notes.map((n) => {
+      const x = this.xOf(n.start);
+      if (x < lo || x > hi || n.velocity === v) return n;
+      changed = true;
+      return { ...n, velocity: v };
+    });
+    if (changed) this.store.setNotes(notes);
+  }
+
+  // ------------------------------------------------------------ drawing
+
   private stepIndex(p: Point): number {
     return Math.floor(this.beatAt(p) / this.step + EPS);
   }
 
-  private dragDraw(d: Extract<Drag, { kind: 'draw' }>, p: Point): void {
+  /** Add a drawn note unless that spot is taken; selects it alongside `selection`. */
+  private addDrawn(pitch: number, start: number, len: number, selection: Iterable<number>): Note | null {
+    if (this.occupied(pitch, start, len)) return null;
+    const note = this.store.makeNote(pitch, start, len);
+    this.store.appendNotes([note], [...selection, note.id]);
+    this.audition(pitch);
+    return note;
+  }
+
+  /** Move a just-drawn note to another pitch, unless that spot is taken. */
+  private repitch(id: number, pitch: number): void {
+    const cur = this.store.notes.find((n) => n.id === id);
+    if (!cur || cur.pitch === pitch || this.occupied(pitch, cur.start, cur.duration, id)) return;
+    this.store.updateNote(id, { pitch });
+    this.audition(pitch);
+  }
+
+  private dragDraw(d: DragOf<'draw'>, p: Point): void {
     const s = this.stepIndex(p);
     const target = this.mods.alt ? d.lockPitch : clampPitch(this.pitchAt(p));
     if (s === d.lastStep) {
@@ -574,104 +558,72 @@ export class Editor {
       const dir = Math.sign(s - d.lastStep);
       const span = Math.abs(s - d.lastStep);
       for (let i = 1; i <= span; i++) {
-        const k = d.lastStep + dir * i;
-        this.placeDrawn(k, Math.round(d.lastPitch + ((target - d.lastPitch) * i) / span));
+        this.placeDrawn(d.lastStep + dir * i, Math.round(d.lastPitch + ((target - d.lastPitch) * i) / span));
       }
     }
     d.lastStep = s;
     d.lastPitch = target;
   }
 
-  /** Boneless painting: a new note each time the mouse travels one note-length; otherwise re-pitch. */
-  private dragDrawFree(d: Extract<Drag, { kind: 'drawFree' }>, p: Point): void {
-    const len = this.step;
-    const beat = Math.max(0, this.beatAt(p));
-    const pitch = this.mods.alt ? d.lockPitch : clampPitch(this.pitchAt(p));
-    const { store } = this;
-    if (Math.abs(beat - d.lastStart) >= len) {
-      if (this.occupied(pitch, beat, len)) return;
-      const note = store.makeNote(pitch, beat, len);
-      d.currentId = note.id;
-      d.lastStart = beat;
-      store.setNotes([...store.notes, note], [...store.selection, note.id]);
-      this.audition(pitch);
-      return;
-    }
-    const cur = store.notes.find((n) => n.id === d.currentId);
-    if (!cur || cur.pitch === pitch || this.occupied(pitch, cur.start, cur.duration, cur.id)) return;
-    store.setNotes(store.notes.map((n) => (n.id === d.currentId ? { ...n, pitch } : n)));
-    this.audition(pitch);
-  }
-
   /** One drawn note per grid step; moving vertically within a step re-pitches it. */
   private placeDrawn(stepIdx: number, pitch: number): void {
     const d = this.drag;
     if (d?.kind !== 'draw' || stepIdx < 0) return;
-    const step = this.step;
-    const start = stepIdx * step;
-    const existingId = d.steps.get(stepIdx);
-    const { store } = this;
-    if (existingId !== undefined) {
-      const cur = store.notes.find((n) => n.id === existingId);
-      if (!cur || cur.pitch === pitch) return;
-      if (this.occupied(pitch, start, step, existingId)) return;
-      store.setNotes(store.notes.map((n) => (n.id === existingId ? { ...n, pitch } : n)));
-    } else {
-      if (this.occupied(pitch, start, step)) return;
-      const note = store.makeNote(pitch, start, step);
-      d.steps.set(stepIdx, note.id);
-      store.setNotes([...store.notes, note], [...d.steps.values()]);
-    }
-    this.audition(pitch);
+    const existing = d.steps.get(stepIdx);
+    if (existing !== undefined) return this.repitch(existing, pitch);
+    const note = this.addDrawn(pitch, stepIdx * this.step, this.step, d.steps.values());
+    if (note) d.steps.set(stepIdx, note.id);
   }
 
-  private occupied(pitch: number, start: number, dur: number, except?: number): boolean {
-    return this.store.notes.some(
-      (n) => n.id !== except && n.pitch === pitch && n.start < start + dur - EPS && noteEnd(n) > start + EPS,
-    );
+  /** Boneless painting: a new note each time the mouse travels one note-length; otherwise re-pitch. */
+  private dragDrawFree(d: DragOf<'drawFree'>, p: Point): void {
+    const beat = Math.max(0, this.beatAt(p));
+    const pitch = this.mods.alt ? d.lockPitch : clampPitch(this.pitchAt(p));
+    if (Math.abs(beat - d.lastStart) < this.step) return this.repitch(d.currentId, pitch);
+    const note = this.addDrawn(pitch, beat, this.step, this.store.selection);
+    if (note) {
+      d.currentId = note.id;
+      d.lastStart = beat;
+    }
   }
+
+  // ------------------------------------------------------------ ruler
 
   private loopZone(p: Point): LoopZone {
     const { start, end } = this.store.loop;
-    const x = p.x - KEYS_W;
-    const x0 = this.vp.beatToX(start);
-    const x1 = this.vp.beatToX(end);
+    const x0 = this.xOf(start);
+    const x1 = this.xOf(end);
     const edge = Math.min(6, (x1 - x0) / 3);
-    if (Math.abs(x - x0) <= edge) return 'start';
-    if (Math.abs(x - x1) <= edge) return 'end';
-    if (x > x0 && x < x1) return 'move';
-    return 'new';
+    if (Math.abs(p.x - x0) <= edge) return 'start';
+    if (Math.abs(p.x - x1) <= edge) return 'end';
+    return p.x > x0 && p.x < x1 ? 'move' : 'new';
   }
 
-  private dragLoop(d: Extract<Drag, { kind: 'loop' }>, p: Point): void {
-    if (!d.moved && Math.abs(p.x - d.originX) < DRAG_THRESHOLD) return;
-    d.moved = true;
-    const step = this.snapping() ? this.step : 1 / 64;
-    const snap = (b: number) => Math.max(0, this.snapping() ? snapRound(b, step) : b);
+  private dragLoop(d: DragOf<'loop'>, p: Point): void {
+    if (!this.begin(d, p, false)) return;
+    const min = this.snapping() ? this.step : 1 / 64;
+    const at = (b: number) => Math.max(0, this.snap(b));
     const beat = this.beatAt(p);
     const { base } = d;
     switch (d.mode) {
       case 'move': {
-        const len = base.end - base.start;
-        const start = snap(base.start + beat - d.originBeat);
-        return this.store.setLoop({ start, end: start + len });
+        const start = at(base.start + beat - d.originBeat);
+        return this.store.setLoop({ start, end: start + base.end - base.start });
       }
       case 'start':
-        return this.store.setLoop({ start: Math.min(snap(beat), base.end - step) });
+        return this.store.setLoop({ start: Math.min(at(beat), base.end - min) });
       case 'end':
-        return this.store.setLoop({ end: Math.max(snap(beat), base.start + step) });
+        return this.store.setLoop({ end: Math.max(at(beat), base.start + min) });
       case 'new': {
-        const a = snap(d.originBeat);
-        const b = snap(beat);
-        if (Math.abs(b - a) >= step - 1e-9) this.store.setLoop({ start: Math.min(a, b), end: Math.max(a, b), enabled: true });
-        return;
+        const a = at(d.originBeat);
+        const b = at(beat);
+        if (Math.abs(b - a) >= min - EPS) this.store.setLoop({ start: Math.min(a, b), end: Math.max(a, b), enabled: true });
       }
     }
   }
 
   private scrubTo(p: Point): void {
-    let beat = Math.max(0, this.beatAt(p));
-    if (this.snapping()) beat = snapRound(beat, this.step);
+    const beat = Math.max(0, this.snap(this.beatAt(p)));
     if (Math.abs(beat - this.store.position) > EPS || !this.store.playing) this.transport.seek(beat);
   }
 
@@ -681,12 +633,13 @@ export class Editor {
     const d = this.drag;
     this.drag = null;
     if (this.canvas.hasPointerCapture(e.pointerId)) this.canvas.releasePointerCapture(e.pointerId);
-    if (d?.kind === 'move' && !d.started && d.selectOnlyOnClick !== null) {
-      this.store.setSelection([d.selectOnlyOnClick]);
+    if (d && !d.started) {
+      // Plain clicks.
+      if (d.kind === 'move' && d.selectOnlyOnClick !== null) this.store.setSelection([d.selectOnlyOnClick]);
+      if (d.kind === 'rulerZoom') this.scrubTo(d.origin);
+      // Clicking the brace switches the loop on/off, as in Live.
+      if (d.kind === 'loop' && d.mode !== 'new') this.store.setLoop({ enabled: !this.store.loop.enabled });
     }
-    if (d?.kind === 'rulerZoom' && !d.moved) this.scrubTo(d.origin);
-    // Clicking the brace switches the loop on/off, as in Live.
-    if (d?.kind === 'loop' && !d.moved && d.mode !== 'new') this.store.setLoop({ enabled: !this.store.loop.enabled });
     this.overlay.marquee = null;
     this.cancelPreview();
     const p = this.local(e);
@@ -699,62 +652,81 @@ export class Editor {
 
   private hover(p: Point): void {
     const o = this.overlay;
-    const region = this.regionAt(p.x, p.y);
+    const region = this.region(p);
     o.hoverNote = null;
-    o.hoverZone = null;
     o.ghost = null;
     o.hoverPitch = null;
+    this.hoverZone = null;
     o.velocityNote = region === 'velocity' && !this.store.drawMode ? (this.stemAt(p)?.id ?? null) : null;
     if (region === 'grid' || region === 'keys') {
       const pitch = this.pitchAt(p);
-      if (pitch >= MIN_PITCH && pitch <= MAX_PITCH) o.hoverPitch = pitch;
+      if (isValidPitch(pitch)) o.hoverPitch = pitch;
     }
     if (region !== 'grid' || o.hoverPitch === null) return;
     const h = this.hit(p);
     if (h) {
       o.hoverNote = h.note.id;
-      o.hoverZone = h.zone;
+      this.hoverZone = h.zone;
     } else if (this.store.drawMode) {
-      const step = this.step;
-      const start = this.snapping() ? Math.max(0, this.stepIndex(p)) * step : Math.max(0, this.beatAt(p));
-      o.ghost = { pitch: o.hoverPitch, start, duration: step };
+      o.ghost = { pitch: o.hoverPitch, start: Math.max(0, this.snap(this.beatAt(p), 'floor')), duration: this.step };
     }
   }
 
   private clearHover(): void {
     const o = this.overlay;
-    o.hoverNote = o.hoverZone = o.ghost = o.hoverPitch = null;
+    o.hoverNote = o.ghost = o.hoverPitch = o.velocityNote = null;
+    this.hoverZone = null;
     this.invalidate();
   }
 
-  private updateCursor(p: Point): void {
-    let cursor = 'default';
-    const d = this.drag;
-    if (d) {
-      if (d.kind === 'resize') cursor = 'ew-resize';
-      else if (d.kind === 'move') cursor = d.started ? (this.mods.alt ? 'copy' : 'grabbing') : 'default';
-      else if (d.kind === 'draw' || d.kind === 'drawFree' || d.kind === 'erase' || d.kind === 'velocityPaint') cursor = PENCIL_CURSOR;
-      else if (d.kind === 'velocity') cursor = 'ns-resize';
-      else if (d.kind === 'rulerZoom') cursor = 'zoom-in';
-      else if (d.kind === 'scrub') cursor = 'col-resize';
-      else if (d.kind === 'loop') cursor = d.mode === 'move' ? 'grabbing' : d.mode === 'new' ? 'crosshair' : 'ew-resize';
-    } else {
-      const region = this.regionAt(p.x, p.y);
-      if (region === 'grid') {
-        const z = this.overlay.hoverZone;
-        if (z === 'start' || z === 'end') cursor = 'ew-resize';
-        else if (this.store.drawMode) cursor = PENCIL_CURSOR;
-      } else if (region === 'ruler') {
-        if (p.y < LOOP_H) {
-          const z = this.loopZone(p);
-          cursor = z === 'start' || z === 'end' ? 'ew-resize' : z === 'move' ? 'grab' : 'crosshair';
-        } else cursor = p.y < LOOP_H + SCRUB_H ? 'pointer' : 'zoom-in';
-      } else if (region === 'keys') {
-        cursor = 'pointer';
-      } else if (region === 'velocity') {
-        cursor = this.store.drawMode ? PENCIL_CURSOR : this.overlay.velocityNote !== null ? 'ns-resize' : 'default';
-      }
+  private dragCursor(d: Drag): string {
+    switch (d.kind) {
+      case 'resize':
+        return 'ew-resize';
+      case 'move':
+        return d.started ? (this.mods.alt ? 'copy' : 'grabbing') : 'default';
+      case 'draw':
+      case 'drawFree':
+      case 'erase':
+      case 'velocityPaint':
+        return PENCIL_CURSOR;
+      case 'velocity':
+        return 'ns-resize';
+      case 'rulerZoom':
+        return 'zoom-in';
+      case 'scrub':
+        return 'col-resize';
+      case 'loop':
+        return d.mode === 'move' ? 'grabbing' : d.mode === 'new' ? 'crosshair' : 'ew-resize';
+      default:
+        return 'default';
     }
+  }
+
+  private hoverCursor(p: Point): string {
+    switch (this.region(p)) {
+      case 'grid':
+        if (this.hoverZone === 'start' || this.hoverZone === 'end') return 'ew-resize';
+        return this.store.drawMode ? PENCIL_CURSOR : 'default';
+      case 'loop': {
+        const z = this.loopZone(p);
+        return z === 'start' || z === 'end' ? 'ew-resize' : z === 'move' ? 'grab' : 'crosshair';
+      }
+      case 'scrub':
+      case 'keys':
+        return 'pointer';
+      case 'beat':
+        return 'zoom-in';
+      case 'velocity':
+        if (this.store.drawMode) return PENCIL_CURSOR;
+        return this.overlay.velocityNote !== null ? 'ns-resize' : 'default';
+      default:
+        return 'default';
+    }
+  }
+
+  private updateCursor(p: Point): void {
+    const cursor = this.drag ? this.dragCursor(this.drag) : this.hoverCursor(p);
     if (this.canvas.style.cursor !== cursor) this.canvas.style.cursor = cursor;
   }
 
@@ -787,44 +759,38 @@ export class Editor {
   private onWheel(e: WheelEvent): void {
     e.preventDefault();
     const p = this.local(e);
+    const g = this.layout.toGrid(p);
     const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? this.vp.height : 1;
     let dx = e.deltaX * unit;
     let dy = e.deltaY * unit;
+    const clampDelta = (v: number) => Math.max(-60, Math.min(60, v));
 
     if (e.ctrlKey || e.metaKey) {
       // Trackpad pinch arrives as ctrl+wheel; Cmd+wheel zooms time, as in Live.
       const k = e.ctrlKey && !e.metaKey ? 0.012 : 0.004;
-      this.vp.zoomX(Math.exp(-Math.max(-60, Math.min(60, dy)) * k), Math.max(0, p.x - KEYS_W));
+      this.vp.zoomX(Math.exp(-clampDelta(dy) * k), Math.max(0, g.x));
     } else if (e.altKey) {
-      this.vp.zoomY(Math.exp(-Math.max(-60, Math.min(60, dy)) * 0.006), Math.max(0, p.y - RULER_H));
+      this.vp.zoomY(Math.exp(-clampDelta(dy) * 0.006), Math.max(0, g.y));
     } else {
       if (e.shiftKey && dx === 0) [dx, dy] = [dy, 0];
       this.vp.scrollBy(dx, dy);
     }
-    this.hover(p);
-    this.updateCursor(p);
     if (this.drag) this.dragTo(p);
-    this.invalidate();
   }
 
   /** Called every frame: scroll when dragging past the grid edges. */
   autoscroll(): void {
     const d = this.drag;
-    if (!d || !['move', 'resize', 'marquee', 'draw', 'drawFree', 'erase'].includes(d.kind)) return;
-    const { x, y } = this.last;
+    if (!d || !AUTOSCROLLING.has(d.kind)) return;
     const vp = this.vp;
-    const gx = x - KEYS_W;
-    const gy = y - RULER_H;
+    const g = this.layout.toGrid(this.last);
     const speed = (over: number) => Math.sign(over) * Math.min(AUTOSCROLL_MAX, Math.abs(over) * 0.35);
-    const dx = gx < 0 ? speed(gx) : gx > vp.width ? speed(gx - vp.width) : 0;
-    const dy = gy < 0 ? speed(gy) : gy > vp.height ? speed(gy - vp.height) : 0;
+    const dx = g.x < 0 ? speed(g.x) : g.x > vp.width ? speed(g.x - vp.width) : 0;
+    const dy = g.y < 0 ? speed(g.y) : g.y > vp.height ? speed(g.y - vp.height) : 0;
     if (!dx && !dy) return;
     const sx = vp.scrollX;
     const sy = vp.scrollY;
     vp.scrollBy(dx, dy);
-    if (vp.scrollX !== sx || vp.scrollY !== sy) {
-      this.dragTo(this.last);
-      this.invalidate();
-    }
+    if (vp.scrollX !== sx || vp.scrollY !== sy) this.dragTo(this.last);
   }
 }

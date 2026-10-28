@@ -1,14 +1,11 @@
 // The compact top bar: transport, tempo, position, and grid/draw settings.
 import type { PianoStatus } from '../audio/piano';
 import type { Transport } from '../playback/transport';
-import type { Store } from '../state/store';
+import { KEYBOARD_SPAN, type ChangeKind, type Store } from '../state/store';
 import { formatPosition, GRID_OPTIONS } from '../timeline/grid';
-import { pitchName } from '../music/pitch';
-
-const MIN_BPM = 20;
-const MAX_BPM = 400;
-
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+import { MAX_PITCH, pitchName } from '../music/pitch';
+import { MAX_BPM, MIN_BPM } from '../model/track';
+import { $ } from './dom';
 
 export interface TransportBar {
   setStatus(status: PianoStatus): void;
@@ -17,7 +14,7 @@ export interface TransportBar {
 export function mountTransportBar(
   store: Store,
   transport: Transport,
-  opts: { onHelp: () => void; onPlay: () => void; onReturn: () => void; onKeys: () => void },
+  opts: { onHelp: () => void; onKeys: () => void },
 ): TransportBar {
   const play = $<HTMLButtonElement>('btn-play');
   const toStart = $<HTMLButtonElement>('btn-start');
@@ -38,14 +35,8 @@ export function mountTransportBar(
     b.addEventListener('mousedown', (e) => e.preventDefault());
   }
 
-  play.addEventListener('click', () => {
-    transport.toggle();
-    if (store.playing) opts.onPlay();
-  });
-  toStart.addEventListener('click', () => {
-    transport.seek(0);
-    opts.onReturn();
-  });
+  play.addEventListener('click', () => transport.toggle());
+  toStart.addEventListener('click', () => transport.seek(0));
   draw.addEventListener('click', () => store.setDrawMode(!store.drawMode));
   loop.addEventListener('click', () => store.setLoop({ enabled: !store.loop.enabled }));
   triplet.addEventListener('click', () => store.setGrid({ triplet: !store.grid.triplet }));
@@ -64,7 +55,7 @@ export function mountTransportBar(
     if (!Number.isFinite(v)) return;
     const clamped = Math.round(Math.max(MIN_BPM, Math.min(MAX_BPM, v)) * 100) / 100;
     if (clamped !== store.bpm) transport.setBpm(clamped);
-    bpm.value = fmtBpm(store.bpm);
+    bpm.value = store.bpm.toFixed(2);
   };
   let dragY: number | null = null;
   let dragStart = 0;
@@ -94,7 +85,7 @@ export function mountTransportBar(
   bpm.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') bpm.blur();
     else if (e.key === 'Escape') {
-      bpm.value = fmtBpm(store.bpm);
+      bpm.value = store.bpm.toFixed(2);
       bpm.blur();
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
@@ -104,13 +95,16 @@ export function mountTransportBar(
   });
   bpm.addEventListener('blur', () => commitBpm(parseFloat(bpm.value)));
 
+  const syncPosition = () => {
+    const text = formatPosition(store.position);
+    if (pos.textContent !== text) pos.textContent = text;
+  };
   const sync = () => {
+    syncPosition();
     play.classList.toggle('on', store.playing);
     play.setAttribute('aria-label', store.playing ? 'Pause' : 'Play');
     play.title = store.playing ? 'Pause (Space)' : 'Play (Space)';
-    const text = formatPosition(store.position);
-    if (pos.textContent !== text) pos.textContent = text;
-    if (document.activeElement !== bpm) bpm.value = fmtBpm(store.bpm);
+    if (document.activeElement !== bpm) bpm.value = store.bpm.toFixed(2);
     draw.classList.toggle('on', store.drawMode);
     loop.classList.toggle('on', store.loop.enabled);
     grid.value = String(store.grid.division);
@@ -120,10 +114,11 @@ export function mountTransportBar(
     keys.classList.toggle('on', kb.enabled);
     keysInfo.textContent = kb.enabled ? `${pitchName(kb.base)} · ${kb.velocity}` : '';
     keys.title = kb.enabled
-      ? `Computer keyboard on (M): A–' play ${pitchName(kb.base)}–${pitchName(Math.min(127, kb.base + 17))}, Z/X octave, C/V velocity`
+      ? `Computer keyboard on (M): A–' play ${pitchName(kb.base)}–${pitchName(Math.min(MAX_PITCH, kb.base + KEYBOARD_SPAN))}, Z/X octave, C/V velocity`
       : 'Play notes with the computer keyboard (M)';
   };
-  store.subscribe(sync);
+  // The position changes every frame while playing; only the readout depends on it.
+  store.subscribe((kind: ChangeKind) => (kind === 'position' ? syncPosition() : sync()));
   sync();
 
   return {
@@ -138,8 +133,4 @@ export function mountTransportBar(
       status.dataset.state = s;
     },
   };
-}
-
-function fmtBpm(v: number): string {
-  return v.toFixed(2);
 }

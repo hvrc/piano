@@ -14,6 +14,9 @@ RUN npm install -g pnpm@11.18.0 --no-fund --no-audit
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --prod --frozen-lockfile && pnpm store prune
 COPY server/ ./server/
+# The server shares the track model and limits with the client.
+COPY src/model/ ./src/model/
+COPY src/music/ ./src/music/
 COPY --from=build /app/dist ./dist
 EXPOSE 8080
 USER node

@@ -2,26 +2,24 @@
 import type { Store } from '../state/store';
 import type { Transport } from '../playback/transport';
 import type { Viewport } from '../timeline/viewport';
-import { GRID_OPTIONS, gridStep, snapRound } from '../timeline/grid';
-import { noteEnd } from '../model/note';
+import { GRID_OPTIONS, gridStep, snapCeil, snapFloor, snapRound } from '../timeline/grid';
+import { noteBounds, notesEnd } from '../model/note';
 import * as cmd from './commands';
 import type { ComputerKeyboard } from '../input/computerKeyboard';
-import { isModalOpen } from '../ui/dialog';
 
 export interface ShortcutContext {
   store: Store;
   transport: Transport;
   vp: Viewport;
-  invalidate: () => void;
   toggleHelp: (show?: boolean) => void;
-  revealPlayhead: () => void;
+  closePopovers: () => void;
   keyboard: ComputerKeyboard;
   file: { save: (asCopy: boolean) => void; open: () => void };
 }
 
 export function installShortcuts(c: ShortcutContext): void {
+  // (An open dialog captures keydown first and stops it, so nothing here fires behind it.)
   window.addEventListener('keydown', (e) => {
-    if (isModalOpen()) return;
     // Save / open work everywhere, including while typing a track name.
     if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key.toLowerCase() === 's' || e.key.toLowerCase() === 'o')) {
       e.preventDefault();
@@ -32,10 +30,7 @@ export function installShortcuts(c: ShortcutContext): void {
     }
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
-    if (handle(c, e)) {
-      e.preventDefault();
-      c.invalidate();
-    }
+    if (handle(c, e)) e.preventDefault();
   });
 }
 
@@ -90,19 +85,16 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
     case ' ':
       if (e.shiftKey && !store.playing) transport.play();
       else transport.toggle();
-      if (store.playing) c.revealPlayhead();
       return true;
     case 'b': store.setDrawMode(!store.drawMode); return true;
     case 'l': store.setLoop({ enabled: !store.loop.enabled }); return true;
     case 'Delete':
     case 'Backspace': cmd.deleteSelected(store); return true;
-    case 'Escape': store.setSelection([]); c.toggleHelp(false); return true;
+    case 'Escape': store.setSelection([]); c.toggleHelp(false); c.closePopovers(); return true;
     case '?': c.toggleHelp(); return true;
-    case 'Home': transport.seek(0); c.revealPlayhead(); return true;
+    case 'Home': transport.seek(0); return true;
     case 'End': {
-      const end = Math.max(0, ...store.notes.map(noteEnd));
-      transport.seek(end);
-      c.revealPlayhead();
+      transport.seek(notesEnd(store.notes));
       return true;
     }
     case 'ArrowUp':
@@ -119,7 +111,6 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
       else if (hasSel) cmd.moveSelected(store, dir * step);
       else {
         transport.seek(Math.max(0, snapRound(store.position, step) + dir * step));
-        c.revealPlayhead();
       }
       return true;
     }
@@ -141,7 +132,7 @@ function loopSelection(store: Store): void {
     return;
   }
   const step = gridStep(store.grid);
-  const start = Math.floor(Math.min(...sel.map((n) => n.start)) / step + 1e-6) * step;
-  const end = Math.ceil(Math.max(...sel.map(noteEnd)) / step - 1e-6) * step;
+  const start = snapFloor(noteBounds(sel).start, step);
+  const end = snapCeil(notesEnd(sel), step);
   store.setLoop({ start, end: Math.max(end, start + step), enabled: true });
 }

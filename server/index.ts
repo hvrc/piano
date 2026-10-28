@@ -72,6 +72,9 @@ function limitWrites(req: IncomingMessage) {
   if (recent.length >= WRITES_PER_10_MIN) throw new HttpError(429, 'Too many saves. Try again in a few minutes.');
   recent.push(now);
   writes.set(ip, recent);
+  if (writes.size > 10_000) {
+    for (const [k, times] of writes) if (now - times[times.length - 1] >= 600_000) writes.delete(k);
+  }
 }
 
 // ------------------------------------------------------------------ API
@@ -89,7 +92,7 @@ async function api(req: IncomingMessage, res: ServerResponse, path: string) {
   if (req.method === 'PUT') {
     limitWrites(req);
     const track = parseTrack(id, await readJson(req));
-    const existing = (await store.list(library)).find((t) => t.id === id);
+    const existing = await store.get(library, id);
     if (!existing && (await store.count(library)) >= MAX_TRACKS_PER_LIBRARY) {
       throw new HttpError(409, `A library can hold at most ${MAX_TRACKS_PER_LIBRARY} tracks.`);
     }

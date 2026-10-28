@@ -26,6 +26,9 @@ export class Transport {
   private scheduledUntil = 0; // beats, within the newest segment
   private timer = 0;
 
+  /** Called when playback starts or the playhead jumps (so the view can follow). */
+  onJump: (beat: number) => void = () => {};
+
   constructor(
     private store: Store,
     private instrument: Instrument,
@@ -47,6 +50,7 @@ export class Transport {
     this.store.setPlaying(true);
     this.tick();
     this.timer = window.setInterval(() => this.tick(), TICK_MS);
+    this.onJump(this.store.position);
   }
 
   pause(): void {
@@ -66,6 +70,7 @@ export class Transport {
       this.tick();
     }
     this.store.setPosition(beat);
+    this.onJump(beat);
   }
 
   setBpm(bpm: number): void {

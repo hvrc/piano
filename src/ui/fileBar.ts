@@ -1,7 +1,7 @@
 // Left side of the top bar: sidebar toggle, track name, save, MIDI open/download.
 import type { Session } from '../library/session';
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+import { $ } from './dom';
 
 export function mountFileBar(session: Session, opts: { onToggleSidebar: () => void }): { openFilePicker: () => void } {
   const name = $<HTMLInputElement>('track-name');

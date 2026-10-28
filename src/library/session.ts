@@ -1,10 +1,11 @@
 // The open document: which saved track (if any) is loaded, its name, and whether it has
 // unsaved changes. Coordinates saving, opening, importing and exporting tracks.
-import { decodeMidi, encodeMidi, MidiParseError, type MidiNote } from '../midi/smf';
-import type { Note } from '../model/note';
+import { decodeMidi, encodeMidi, MidiParseError } from '../midi/smf';
+import type { Note, NoteData } from '../model/note';
 import type { Transport } from '../playback/transport';
 import { DEFAULT_LOOP, type LoopSettings, type Store } from '../state/store';
 import { choose, alertError } from '../ui/dialog';
+import { storageGet, storageSet } from '../util/storage';
 import { deleteTrack, isLibraryKey, libraryKey, listTracks, putTrack, setLibraryKey, type TrackRecord } from './trackStore';
 
 const LAST_TRACK_KEY = 'piano:lastTrack';
@@ -26,22 +27,23 @@ export class Session {
   ready = false;
   private saved: SavedState | null = null;
   private listeners = new Set<() => void>();
+  private lastDirty = false;
 
   constructor(
     private store: Store,
     private transport: Transport,
     private onLoaded: () => void,
   ) {
+    // Edits only matter to listeners (title dot, sidebar) when they flip the unsaved state, so a
+    // drag doesn't re-render the sidebar on every pointer move.
     store.subscribe((k) => {
-      if (k === 'notes' || k === 'bpm' || k === 'loop') this.emit();
+      if ((k === 'notes' || k === 'bpm' || k === 'loop') && this.dirty !== this.lastDirty) this.emit();
     });
     // A library link opened in a tab that's already on the app only changes the hash.
     window.addEventListener('hashchange', async () => {
       if (!(await this.adoptLibraryFromLink())) return;
       // The open roll belonged to the previous library; keep it on screen as unsaved work.
-      this.trackId = null;
-      this.saved = null;
-      storageSet(LAST_TRACK_KEY, '');
+      this.detach();
       this.emit();
     });
   }
@@ -51,7 +53,22 @@ export class Session {
   }
 
   private emit(): void {
+    this.lastDirty = this.dirty;
     for (const fn of this.listeners) fn();
+  }
+
+  /** The roll is no longer backed by a saved track. */
+  private detach(forgetLast = true): void {
+    this.trackId = null;
+    this.saved = null;
+    if (forgetLast) storageSet(LAST_TRACK_KEY, '');
+  }
+
+  /** Remember the current document as exactly what `track` holds. */
+  private markSaved(id: string, name: string): void {
+    this.trackId = id;
+    this.name = name;
+    this.saved = { notes: this.store.notes, bpm: this.store.bpm, loop: this.store.loop, name };
   }
 
   /** Notes are immutable and undo restores old arrays, so reference equality tracks edits exactly. */
@@ -136,12 +153,10 @@ export class Session {
     try {
       Object.assign(record, await putTrack(record));
     } catch (err) {
-      await alertError('Couldn’t save the track', err instanceof Error ? err.message : String(err));
+      await alertError('Couldn’t save the track', errorText(err));
       return;
     }
-    this.trackId = id;
-    this.name = name;
-    this.saved = { notes: this.store.notes, bpm: this.store.bpm, loop: this.store.loop, name };
+    this.markSaved(id, name);
     this.tracks = [record, ...this.tracks.filter((t) => t.id !== id)];
     storageSet(LAST_TRACK_KEY, id);
     this.emit();
@@ -160,10 +175,8 @@ export class Session {
   async newTrack(): Promise<void> {
     if (!(await this.confirmDiscard())) return;
     this.replaceDocument([], DEFAULT_BPM);
-    this.trackId = null;
+    this.detach();
     this.name = '';
-    this.saved = null;
-    storageSet(LAST_TRACK_KEY, '');
     this.emit();
   }
 
@@ -171,28 +184,21 @@ export class Session {
     try {
       await deleteTrack(id);
     } catch (err) {
-      await alertError('Couldn’t delete the track', err instanceof Error ? err.message : String(err));
+      await alertError('Couldn’t delete the track', errorText(err));
       return;
     }
     this.tracks = this.tracks.filter((t) => t.id !== id);
-    if (id === this.trackId) {
-      // Keep the roll on screen, but it's no longer backed by a saved track.
-      this.trackId = null;
-      this.saved = null;
-      storageSet(LAST_TRACK_KEY, '');
-    }
+    if (id === this.trackId) this.detach(); // keep the roll on screen as unsaved work
     this.emit();
   }
 
   private load(track: TrackRecord): void {
     this.replaceDocument(track.notes, track.bpm, track.loop ?? DEFAULT_LOOP);
-    this.trackId = track.id;
-    this.name = track.name;
-    this.saved = { notes: this.store.notes, bpm: this.store.bpm, loop: this.store.loop, name: track.name };
+    this.markSaved(track.id, track.name);
     this.emit();
   }
 
-  private replaceDocument(notes: MidiNote[], bpm: number, loop: LoopSettings = DEFAULT_LOOP): void {
+  private replaceDocument(notes: NoteData[], bpm: number, loop: LoopSettings = DEFAULT_LOOP): void {
     this.transport.pause();
     this.store.loadDocument(notes, bpm, loop);
     this.onLoaded();
@@ -229,8 +235,7 @@ export class Session {
     }
     if (!(await this.confirmDiscard())) return;
     this.replaceDocument(song.notes, song.bpm);
-    this.trackId = null;
-    this.saved = null;
+    this.detach(false);
     this.name = file.name.replace(/\.(mid|midi)$/i, '') || song.name || 'Imported';
     this.emit();
   }
@@ -257,8 +262,12 @@ function sameLoop(a: LoopSettings, b: LoopSettings): boolean {
   return a.enabled === b.enabled && a.start === b.start && a.end === b.end;
 }
 
-function toData(n: Note): MidiNote {
-  return { pitch: n.pitch, start: n.start, duration: n.duration, velocity: n.velocity };
+function toData({ id: _id, ...data }: Note): NoteData {
+  return data;
+}
+
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 function fileSafe(name: string): string {
@@ -272,20 +281,4 @@ function saveFile(filename: string, bytes: Uint8Array): void {
   a.download = filename;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function storageGet(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function storageSet(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Private mode etc. — remembering the last track is only a convenience.
-  }
 }

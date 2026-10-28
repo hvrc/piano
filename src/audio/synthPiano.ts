@@ -1,17 +1,15 @@
 // Lightweight synthesized piano. Used while samples load, or if they fail to.
 import { velocityGain, VoicePool, type Instrument, type Voice } from './instrument';
 
-interface LiveVoice {
-  kill(when: number): void;
-}
-
 export class SynthPiano implements Instrument {
-  private pool = new VoicePool<LiveVoice>();
+  private pool: VoicePool;
 
   constructor(
     private ctx: AudioContext,
     private out: AudioNode,
-  ) {}
+  ) {
+    this.pool = new VoicePool(ctx);
+  }
 
   noteOn(pitch: number, velocity: number, when: number): Voice {
     const ctx = this.ctx;
@@ -47,35 +45,15 @@ export class SynthPiano implements Instrument {
     });
     tone.connect(amp).connect(this.out);
 
-    const stopAll = (at: number) => oscs.forEach((o) => o.stop(at));
-    const live: LiveVoice = {
-      kill: (when) => {
-        const r = Math.max(when, ctx.currentTime);
-        amp.gain.cancelScheduledValues(r);
-        amp.gain.setTargetAtTime(0, r, 0.015);
-        stopAll(r + 0.1);
-      },
-    };
-    this.pool.add(live);
+    const { voice, ended } = this.pool.add({ amp, startedAt: t, stop: (at) => oscs.forEach((o) => o.stop(at)) }, 0.08, 0.6);
     oscs[0].onended = () => {
-      this.pool.remove(live);
+      ended();
       amp.disconnect();
     };
-
-    let released = false;
-    return {
-      release: (when) => {
-        if (released) return;
-        released = true;
-        const r = Math.max(when, t + 0.01);
-        amp.gain.cancelScheduledValues(r);
-        amp.gain.setTargetAtTime(0, r, 0.08);
-        stopAll(r + 0.6);
-      },
-    };
+    return voice;
   }
 
   allNotesOff(): void {
-    this.pool.killAll(this.ctx.currentTime);
+    this.pool.killAll();
   }
 }

@@ -54,33 +54,32 @@ All timing is musical. Notes are `{ id, pitch, start, duration, velocity }` with
 
 ```
 src/
-  model/note.ts           Note type
-  music/pitch.ts          pitch names (Live convention), black/white keys
-  state/store.ts          notes, selection, bpm, position, grid, mode; undo/redo snapshots
+  model/note.ts           Note / NoteData, velocity limits, note helpers (shared with server & tests)
+  model/track.ts          saved-track format + limits (BPM, sizes, id/key formats), shared with the server
+  music/pitch.ts          pitch names (Live convention), black/white keys, range checks
+  state/store.ts          notes, selection, bpm, position, grid, mode, loop, keyboard; undo/redo snapshots
   timeline/grid.ts        grid divisions, snapping, bar.beat.sixteenth formatting
-  timeline/viewport.ts    beat/pitch ↔ pixel mapping, scroll, zoom
-  render/                 canvas renderer (grid, notes, ruler, keyboard, playhead), theme, layout
-  editing/editor.ts       pointer interactions (draw, select, move, resize, marquee, audition, ruler)
+  timeline/viewport.ts    beat/pitch ↔ pixel mapping, scroll, zoom (announces changes via onChange)
+  render/layout.ts        where every region sits on the canvas (shared by renderer + editor)
+  render/renderer.ts      canvas drawing: grid, notes, ruler, loop brace, keyboard, velocity lane
+  render/theme.ts         colours
+  editing/editor.ts       pointer interactions (draw, select, move, resize, marquee, velocity, loop, ruler)
   editing/commands.ts     undoable note operations shared by mouse and keyboard
+  editing/transforms.ts   pure Humanize / Legato (unit-tested in Node)
   editing/shortcuts.ts    keyboard map
-  playback/transport.ts   play/pause/seek/tempo + lookahead scheduler on the AudioContext clock
-  audio/instrument.ts     Instrument interface (noteOn → Voice.release)
-  audio/sampledPiano.ts   Salamander sampler (repitched every minor third, velocity → gain + brightness)
-  audio/synthPiano.ts     fallback synth while samples load or if they fail
-  audio/piano.ts          picks sampled or synth
-  audio/output.ts         master bus: light room reverb + compressor
-  ui/transportBar.ts      top bar: transport, tempo, grid, keyboard toggle
-  ui/fileBar.ts           top bar: track name, save, MIDI open/download
-  ui/sidebar.ts           saved tracks list + library link
-  ui/dialog.ts            in-app confirm / error dialogs
   input/computerKeyboard.ts  Live's computer MIDI keyboard
-  midi/smf.ts             Standard MIDI File encoder/decoder (also used by tests)
+  playback/transport.ts   play/pause/seek/tempo/loop + lookahead scheduler on the AudioContext clock
+  playback/follow.ts      keeps the playhead in view (smooth scroll, loop-aware)
+  audio/                  Instrument interface, sampled piano, synth fallback, shared voice pool, master bus
+  midi/smf.ts             Standard MIDI File encoder/decoder
   library/session.ts      the open document: dirty tracking, save/open/new/import/export
   library/trackStore.ts   tracks API client + library key
+  ui/                     top bar, file bar, sidebar, tools (Legato/Humanize), dialogs, `$` helper
+  util/storage.ts         safe localStorage helpers
 server/
   index.ts                node:http server: /api/tracks, static dist/, Vite middleware in dev
   store.ts                FileStore (dev) / Firestore store (prod), notes packed as a flat array
-  validate.ts             request validation and limits (10k notes per track, 1000 tracks per library)
+  validate.ts             request validation using the shared limits in src/model
 ```
 
 Scheduling uses the "two clocks" pattern. A 25 ms timer schedules notes about 120 ms ahead at exact `AudioContext` times. The playhead is drawn from `getOutputTimestamp()`, so it lines up with what you hear. Changing the tempo mid-play re-anchors at the last scheduled beat, so nothing already scheduled shifts.

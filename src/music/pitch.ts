@@ -18,3 +18,7 @@ export function pitchName(pitch: number): string {
 export function clampPitch(pitch: number): number {
   return Math.max(MIN_PITCH, Math.min(MAX_PITCH, pitch));
 }
+
+export function isValidPitch(pitch: number): boolean {
+  return pitch >= MIN_PITCH && pitch <= MAX_PITCH;
+}

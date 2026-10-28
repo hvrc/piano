@@ -1,9 +1,10 @@
 // Ableton Live's "Computer MIDI Keyboard": the home row plays white keys, the row above plays
 // black keys (A W S E D F T G Y H U J K O L P ; ' = C up to the F an octave and a half above).
 // Z / X shift the octave, C / V change velocity. Uses physical key codes, so it works on any layout.
-import { getAudioContext, unlockAudio } from '../audio/context';
+import { getAudioContext, playNow } from '../audio/context';
 import type { Instrument, Voice } from '../audio/instrument';
 import { MAX_PITCH } from '../music/pitch';
+import { clampVelocity } from '../model/note';
 import type { Store } from '../state/store';
 
 const KEY_OFFSETS: Record<string, number> = {
@@ -11,8 +12,6 @@ const KEY_OFFSETS: Record<string, number> = {
   KeyH: 9, KeyU: 10, KeyJ: 11, KeyK: 12, KeyO: 13, KeyL: 14, KeyP: 15, Semicolon: 16, Quote: 17,
 };
 
-/** Semitones covered above the base C. */
-export const KEYBOARD_SPAN = 17;
 const MAX_BASE = 120; // C8
 const VELOCITY_STEP = 20;
 
@@ -41,9 +40,7 @@ export class ComputerKeyboard {
     if (offset !== undefined) {
       const pitch = kb.base + offset;
       if (!e.repeat && !this.held.has(e.code) && pitch <= MAX_PITCH) {
-        unlockAudio();
-        const voice = this.instrument.noteOn(pitch, kb.velocity, getAudioContext().currentTime);
-        this.held.set(e.code, { pitch, voice });
+        this.held.set(e.code, { pitch, voice: playNow(this.instrument, pitch, kb.velocity) });
         this.emit();
       }
       return true;
@@ -56,10 +53,10 @@ export class ComputerKeyboard {
         this.store.setKeyboard({ base: Math.min(MAX_BASE, kb.base + 12) });
         return true;
       case 'KeyC':
-        this.store.setKeyboard({ velocity: Math.max(1, kb.velocity - VELOCITY_STEP) });
+        this.store.setKeyboard({ velocity: clampVelocity(kb.velocity - VELOCITY_STEP) });
         return true;
       case 'KeyV':
-        this.store.setKeyboard({ velocity: Math.min(127, kb.velocity + VELOCITY_STEP) });
+        this.store.setKeyboard({ velocity: clampVelocity(kb.velocity + VELOCITY_STEP) });
         return true;
     }
     return false;

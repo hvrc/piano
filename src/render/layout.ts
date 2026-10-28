@@ -1,32 +1,71 @@
-// Fixed regions of the piano roll canvas.
-export const LABEL_W = 34; // note-name column, left of the keys (as in Live)
-export const KEYS_W = 66; // label column + key strip
-export const LOOP_H = 12; // top ruler lane: the loop brace
-export const SCRUB_H = 18; // next strip: bar numbers, click/drag to move the playhead
-export const BEAT_H = 16; // bottom strip: beat ticks, drag to zoom/scroll
-export const RULER_H = LOOP_H + SCRUB_H + BEAT_H; // total ruler height
+// Where everything sits on the piano-roll canvas. One Layout is shared by the renderer (to draw)
+// and the editor (to hit-test), so pointer and drawing coordinates can't drift apart.
+//
+//   ┌ corner ┬ loop lane (loop brace) ─────────┐
+//   │        ├ scrub strip (bar numbers)       │  RULER_H
+//   │        ├ beat strip (ticks, drag = zoom) │
+//   ├ keys   ┼ grid (notes) ───────────────────┤
+//   ├ corner ┼ velocity lane ──────────────────┤  VEL_H
+//   └────────┴─────────────────────────────────┘
+//    KEYS_W = LABEL_W (note names) + key strip
+import { clampVelocity } from '../model/note';
 
-export const VEL_H = 76; // velocity lane under the notes, as in Live
+export const LABEL_W = 34;
+export const KEYS_W = 66;
+export const LOOP_H = 12;
+export const SCRUB_H = 18;
+export const BEAT_H = 16;
+export const RULER_H = LOOP_H + SCRUB_H + BEAT_H;
+export const VEL_H = 76;
 const VEL_PAD_TOP = 9;
 const VEL_PAD_BOTTOM = 6;
 
-export type Region = 'grid' | 'ruler' | 'keys' | 'corner' | 'velocity';
+export type Region = 'loop' | 'scrub' | 'beat' | 'keys' | 'grid' | 'velocity' | 'corner';
 
-/** `height` is the canvas's CSS height (the velocity lane sits at its bottom). */
-export function regionAt(x: number, y: number, height: number): Region {
-  if (y < RULER_H) return x < KEYS_W ? 'corner' : 'ruler';
-  if (y >= height - VEL_H) return x < KEYS_W ? 'corner' : 'velocity';
-  return x < KEYS_W ? 'keys' : 'grid';
+export interface Point {
+  x: number;
+  y: number;
 }
 
-/** y (canvas CSS px) of a velocity value's stem head inside the lane. */
-export function velocityToY(v: number, height: number): number {
-  const bottom = height - VEL_PAD_BOTTOM;
-  return bottom - (v / 127) * (VEL_H - VEL_PAD_TOP - VEL_PAD_BOTTOM);
-}
+export class Layout {
+  width = 0;
+  height = 0;
 
-export function yToVelocity(y: number, height: number): number {
-  const bottom = height - VEL_PAD_BOTTOM;
-  const v = ((bottom - y) / (VEL_H - VEL_PAD_TOP - VEL_PAD_BOTTOM)) * 127;
-  return Math.max(1, Math.min(127, Math.round(v)));
+  resize(width: number, height: number): void {
+    this.width = width;
+    this.height = height;
+  }
+
+  /** Size of the note grid (the Viewport's area). */
+  get gridWidth(): number {
+    return Math.max(0, this.width - KEYS_W);
+  }
+
+  get gridHeight(): number {
+    return Math.max(0, this.height - RULER_H - VEL_H);
+  }
+
+  get velocityTop(): number {
+    return this.height - VEL_H;
+  }
+
+  regionAt({ x, y }: Point): Region {
+    if (y < RULER_H) return x < KEYS_W ? 'corner' : y < LOOP_H ? 'loop' : y < LOOP_H + SCRUB_H ? 'scrub' : 'beat';
+    if (y >= this.velocityTop) return x < KEYS_W ? 'corner' : 'velocity';
+    return x < KEYS_W ? 'keys' : 'grid';
+  }
+
+  /** Canvas point → coordinates inside the grid area. */
+  toGrid({ x, y }: Point): Point {
+    return { x: x - KEYS_W, y: y - RULER_H };
+  }
+
+  /** y of a velocity value's stem head in the velocity lane. */
+  velocityToY(v: number): number {
+    return this.height - VEL_PAD_BOTTOM - (v / 127) * (VEL_H - VEL_PAD_TOP - VEL_PAD_BOTTOM);
+  }
+
+  yToVelocity(y: number): number {
+    return clampVelocity(((this.height - VEL_PAD_BOTTOM - y) / (VEL_H - VEL_PAD_TOP - VEL_PAD_BOTTOM)) * 127);
+  }
 }

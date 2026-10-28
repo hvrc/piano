@@ -14,6 +14,7 @@ export const C = {
   noteSelectedOutline: '#a9d8ea',
   noteSelectedInner: '#0a5778',
   noteSelected: '#00a0d8',
+  noteSelectedHover: '#1db4ea',
   noteLabel: '#05324a',
   ghost: 'rgba(0,151,205,0.4)',
   marqueeFill: 'rgba(255,255,255,0.12)',
@@ -62,8 +63,15 @@ export const C = {
 export const FONT = '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif';
 
 /** Live shades notes by velocity: soft notes are paler, loud notes are deep blue. */
-export function noteFill(velocity: number, hovered: boolean): string {
+function fillFor(velocity: number, hovered: boolean): string {
   const v = velocity / 127;
   const l = 62 - v * 22 + (hovered ? 6 : 0);
   return `hsl(196 ${35 + v * 65}% ${l}%)`;
+}
+
+// Precomputed per velocity, so drawing a frame doesn't build colour strings per note.
+const FILLS = [false, true].map((hovered) => Array.from({ length: 128 }, (_, v) => fillFor(v, hovered)));
+
+export function noteFill(velocity: number, hovered: boolean): string {
+  return FILLS[hovered ? 1 : 0][Math.max(0, Math.min(127, Math.round(velocity)))];
 }

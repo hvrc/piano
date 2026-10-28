@@ -17,20 +17,18 @@ interface Sample {
   offset: number; // seconds of leading silence to skip
 }
 
-interface LiveVoice {
-  kill(when: number): void;
-}
-
 export class SampledPiano implements Instrument {
   ready = false;
   private samples = new Map<number, Sample>();
   private roots: number[] = [];
-  private pool = new VoicePool<LiveVoice>();
+  private pool: VoicePool;
 
   constructor(
     private ctx: AudioContext,
     private out: AudioNode,
-  ) {}
+  ) {
+    this.pool = new VoicePool(ctx);
+  }
 
   async load(baseUrl: string): Promise<void> {
     await Promise.all(
@@ -69,36 +67,17 @@ export class SampledPiano implements Instrument {
     src.start(t, sample.offset);
 
     const releaseTc = dampTime(pitch);
-    let released = false;
-    const live: LiveVoice = {
-      kill: (when) => {
-        const r = Math.max(when, ctx.currentTime);
-        amp.gain.cancelScheduledValues(r);
-        amp.gain.setTargetAtTime(0, r, 0.015);
-        src.stop(r + 0.1);
-      },
-    };
-    this.pool.add(live);
+    const { voice, ended } = this.pool.add({ amp, startedAt: t, stop: (at) => src.stop(at) }, releaseTc, releaseTc * 8);
     src.onended = () => {
-      this.pool.remove(live);
+      ended();
       src.disconnect();
       amp.disconnect();
     };
-
-    return {
-      release: (when) => {
-        if (released) return;
-        released = true;
-        const r = Math.max(when, t + 0.01);
-        amp.gain.cancelScheduledValues(r);
-        amp.gain.setTargetAtTime(0, r, releaseTc);
-        src.stop(r + releaseTc * 8);
-      },
-    };
+    return voice;
   }
 
   allNotesOff(): void {
-    this.pool.killAll(this.ctx.currentTime);
+    this.pool.killAll();
   }
 
   private nearestRoot(pitch: number): number {

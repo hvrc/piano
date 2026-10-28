@@ -1,16 +1,22 @@
 // Application state: notes, selection, tempo, playback position, grid and edit mode.
 // Notes are immutable values; edits replace them, which keeps undo snapshots cheap.
-import { DEFAULT_VELOCITY, type Note } from '../model/note';
+import { DEFAULT_VELOCITY, type Note, type NoteData } from '../model/note';
+import type { LoopSettings } from '../model/track';
 import type { GridSettings } from '../timeline/grid';
+
+export type { LoopSettings };
 
 export type ChangeKind = 'notes' | 'selection' | 'position' | 'playing' | 'bpm' | 'grid' | 'mode' | 'keyboard' | 'loop';
 
-/** Live's loop brace: when enabled, playback that reaches `end` jumps back to `start` (beats). */
-export interface LoopSettings {
+/** Live's computer MIDI keyboard: A..' play a 1.5-octave range starting at `base`. */
+export interface KeyboardSettings {
   enabled: boolean;
-  start: number;
-  end: number;
+  base: number; // MIDI pitch of the A key (a C)
+  velocity: number;
 }
+
+/** Semitones the computer keyboard covers above its base C (A … ' = C … F). */
+export const KEYBOARD_SPAN = 17;
 
 export const DEFAULT_LOOP: LoopSettings = { enabled: false, start: 0, end: 4 };
 
@@ -54,7 +60,7 @@ export class Store {
   }
 
   makeNote(pitch: number, start: number, duration: number, velocity = DEFAULT_VELOCITY): Note {
-    return { id: this.nextId++, pitch, start, duration, velocity };
+    return { id: this.newId(), pitch, start, duration, velocity };
   }
 
   newId(): number {
@@ -73,6 +79,19 @@ export class Store {
     this.emit('notes');
   }
 
+  /** Add notes (optionally choosing the new selection). */
+  appendNotes(notes: Note[], selection?: Iterable<number>): void {
+    this.setNotes([...this.notes, ...notes], selection);
+  }
+
+  updateNote(id: number, patch: Partial<NoteData>): void {
+    this.setNotes(this.notes.map((n) => (n.id === id ? { ...n, ...patch } : n)));
+  }
+
+  removeNote(id: number): void {
+    this.setNotes(this.notes.filter((n) => n.id !== id));
+  }
+
   setSelection(ids: Iterable<number>): void {
     this.selection = new Set(ids);
     this.emit('selection');
@@ -84,7 +103,7 @@ export class Store {
 
   /** Replace everything with a freshly opened document (clears selection and history). */
   loadDocument(
-    notes: { pitch: number; start: number; duration: number; velocity: number }[],
+    notes: NoteData[],
     bpm: number,
     loop: LoopSettings = DEFAULT_LOOP,
   ): void {
@@ -153,7 +172,6 @@ export class Store {
     this.emit('grid');
   }
 
-  /** Replaces the loop object (so saved-state comparisons by reference keep working). */
   setLoop(patch: Partial<LoopSettings>): void {
     const next = { ...this.loop, ...patch };
     if (next.end - next.start < 1e-6) return;

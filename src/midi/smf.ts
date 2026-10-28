@@ -2,17 +2,12 @@
 // Writes format 0 (one track: name, tempo, 4/4, Acoustic Grand program, notes).
 // Reads formats 0 and 1, merging every track and channel except General MIDI drums.
 
-export interface MidiNote {
-  pitch: number;
-  start: number; // beats
-  duration: number; // beats
-  velocity: number;
-}
+import { clampVelocity, type NoteData } from '../model/note.ts';
 
 export interface MidiSong {
   name?: string;
   bpm: number;
-  notes: MidiNote[];
+  notes: NoteData[];
 }
 
 const PPQ = 480;
@@ -25,7 +20,7 @@ export function encodeMidi(song: MidiSong): Uint8Array {
   for (const n of song.notes) {
     const on = Math.max(0, Math.round(n.start * PPQ));
     const off = Math.max(on + 1, Math.round((n.start + n.duration) * PPQ));
-    const vel = Math.max(1, Math.min(127, Math.round(n.velocity)));
+    const vel = clampVelocity(n.velocity);
     // At equal ticks note-offs go first, so repeated notes aren't cut short.
     events.push({ tick: on, order: 1, bytes: [0x90, n.pitch, vel] });
     events.push({ tick: off, order: 0, bytes: [0x80, n.pitch, 0] });
@@ -133,7 +128,7 @@ export function decodeMidi(data: ArrayBuffer): MidiSong {
   if (division & 0x8000) throw new MidiParseError('SMPTE-timed MIDI files are not supported.');
   const ppq = division || PPQ;
 
-  const notes: (MidiNote & { channel: number })[] = [];
+  const notes: (NoteData & { channel: number })[] = [];
   let name: string | undefined;
   let tempo: { tick: number; mpq: number } | undefined;
 
@@ -214,7 +209,7 @@ function toNote(
   on: { tick: number; velocity: number },
   offTick: number,
   ppq: number,
-): MidiNote & { channel: number } {
+): NoteData & { channel: number } {
   return {
     pitch,
     channel,

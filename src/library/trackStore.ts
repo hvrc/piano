@@ -1,21 +1,12 @@
 // Saved tracks live on the server (Firestore in production), grouped into a "library".
 // Each browser holds a random library key; the server only ever stores its hash.
 // Opening a library link (/#library=KEY) on another device shares the same library.
-import type { MidiNote } from '../midi/smf';
-import type { LoopSettings } from '../state/store';
+import { LIBRARY_KEY, type TrackRecord } from '../model/track';
+import { storageGet, storageSet } from '../util/storage';
 
-export interface TrackRecord {
-  id: string;
-  name: string;
-  bpm: number;
-  notes: MidiNote[];
-  loop?: LoopSettings;
-  createdAt: number;
-  updatedAt: number;
-}
+export type { TrackRecord };
 
 const KEY_STORAGE = 'piano:library';
-const KEY_PATTERN = /^[A-Za-z0-9_-]{22,64}$/;
 
 let memoryKey: string | null = null;
 
@@ -25,29 +16,21 @@ function newKey(): string {
 }
 
 export function libraryKey(): string {
-  try {
-    let key = localStorage.getItem(KEY_STORAGE);
-    if (!key || !KEY_PATTERN.test(key)) {
-      key = newKey();
-      localStorage.setItem(KEY_STORAGE, key);
-    }
-    return key;
-  } catch {
-    return (memoryKey ??= newKey());
-  }
+  const stored = storageGet(KEY_STORAGE);
+  if (stored && LIBRARY_KEY.test(stored)) return stored;
+  // No storage (private mode) falls back to a key that lasts for this page.
+  memoryKey ??= newKey();
+  storageSet(KEY_STORAGE, memoryKey);
+  return memoryKey;
 }
 
 export function setLibraryKey(key: string): void {
   memoryKey = key;
-  try {
-    localStorage.setItem(KEY_STORAGE, key);
-  } catch {
-    // fall back to the in-memory key
-  }
+  storageSet(KEY_STORAGE, key);
 }
 
 export function isLibraryKey(value: string): boolean {
-  return KEY_PATTERN.test(value);
+  return LIBRARY_KEY.test(value);
 }
 
 export function libraryLink(): string {
