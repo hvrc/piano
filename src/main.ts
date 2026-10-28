@@ -118,6 +118,11 @@ new ResizeObserver(() => {
 }).observe(canvas.parentElement!);
 renderer.resize();
 vp.centerOnPitch(DEFAULT_CENTRE_PITCH);
+// Canvas text uses the web fonts; redraw once they arrive.
+void document.fonts?.ready.then(() => {
+  renderer.fontsLoaded();
+  invalidate();
+});
 
 // Scrollable length: past the last note (and the playhead) with room to keep composing.
 let lastNoteEnd = 0;

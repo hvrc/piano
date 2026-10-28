@@ -1,72 +1,83 @@
-// Palette sampled from Ableton Live's MIDI editor (default mid-grey theme).
+// "Paper and pen": a player-piano roll on warm paper. Black ink for everything structural,
+// with a few light inks here and there — teal (the roll's expression line), red pen (the
+// playhead), highlighter yellow (hover), and a soft green (computer keyboard).
+const INK = '35, 32, 27'; // rgb of the ink
+const ink = (a: number) => `rgba(${INK}, ${a})`;
+
+export const PAPER = '#f4efe2';
+export const TEAL = '#4b9a95';
+export const RED_PEN = '#c8412f';
+export const HIGHLIGHT = '#f3e48c';
+export const GREEN = '#9cc46a';
+
 export const C = {
-  bg: '#4a5154', // outside the pitch range
-  rowWhite: '#737c80',
-  rowBlack: '#5e6569',
-  rowLine: 'rgba(0,0,0,0.2)', // E|F boundary
-  octaveLine: 'rgba(0,0,0,0.3)', // B|C boundary
-  rowHover: 'rgba(255,255,255,0.06)',
-  lineSub: 'rgba(0,0,0,0.1)',
-  lineBeat: 'rgba(0,0,0,0.2)',
-  lineBar: 'rgba(0,0,0,0.42)',
+  bg: '#ebe4d2', // outside the pitch range
+  rowWhite: PAPER,
+  rowBlack: '#ece5d3',
+  rowLine: ink(0.1), // E|F boundary
+  octaveLine: ink(0.32), // B|C boundary
+  rowHover: 'rgba(243, 228, 140, 0.35)',
+  lineSub: ink(0.12),
+  lineBeat: ink(0.28),
+  lineBar: ink(0.6),
 
-  noteBorder: '#14465d',
-  noteSelectedOutline: '#a9d8ea',
-  noteSelectedInner: '#0a5778',
-  noteSelected: '#00a0d8',
-  noteSelectedHover: '#1db4ea',
-  noteLabel: '#05324a',
-  ghost: 'rgba(0,151,205,0.4)',
-  marqueeFill: 'rgba(255,255,255,0.12)',
-  marqueeStroke: 'rgba(255,255,255,0.85)',
+  noteInk: ink(1),
+  noteSelected: TEAL,
+  noteSelectedHover: '#3d8580',
+  noteSelectedOutline: '#2f6f6b',
+  noteBorder: ink(1),
+  noteLabel: PAPER,
+  ghost: 'rgba(75, 154, 149, 0.9)',
+  marqueeFill: 'rgba(75, 154, 149, 0.08)',
+  marqueeStroke: ink(0.8),
 
-  playhead: 'rgba(255,255,255,0.95)',
-  insertMarker: 'rgba(255,255,255,0.55)',
+  playhead: RED_PEN,
+  insertMarker: 'rgba(200, 65, 47, 0.55)',
 
-  ruler: '#596164',
-  scrub: '#4d5658',
-  rulerText: '#e1e6e8',
-  rulerTextDim: '#b0b8bb',
-  rulerTick: 'rgba(0,0,0,0.42)',
-  divider: '#353c3f',
+  ruler: '#f0eadb',
+  scrub: PAPER,
+  rulerText: ink(0.9),
+  rulerTextDim: ink(0.45),
+  rulerTick: ink(0.5),
+  divider: ink(0.85),
 
-  labelColumn: '#4d5658',
-  label: '#c9d2d5',
-  labelHover: '#ffffff',
-  labelDivider: '#464d50',
-  keysBorder: '#3f4448',
-  keyWhite: '#e0e2e6',
-  keyWhiteHover: '#f2f3f5',
-  keyWhiteLine: '#a3a8ab',
-  keyBlack: '#2d3437',
-  keyBlackHover: '#454d51',
-  keyActive: '#4fc0ea',
-  keyActiveBlack: '#0084b5',
-  keyboardRange: '#ffa21c',
+  labelColumn: '#efe8d7',
+  label: ink(0.75),
+  labelHover: ink(1),
+  labelDivider: ink(0.3),
+  keysBorder: ink(0.85),
+  keyWhite: '#fbf8ef',
+  keyWhiteHover: HIGHLIGHT,
+  keyWhiteLine: ink(0.55),
+  keyBlack: ink(1),
+  keyBlackHover: '#5a554b',
+  keyActive: TEAL,
+  keyActiveBlack: '#2f6f6b',
+  keyboardRange: GREEN,
 
-  hint: 'rgba(20,24,26,0.5)',
+  hint: ink(0.4),
 
-  velLane: '#4f575a',
-  velGuide: 'rgba(0,0,0,0.16)',
-  velLabel: '#aab3b6',
-  velValue: '#ffffff',
+  velLane: '#f0eadb',
+  velGuide: ink(0.16),
+  velLabel: ink(0.6),
+  velValue: ink(1),
 
-  loopLane: '#454d50',
-  loopOn: '#ffa21c',
-  loopOnEdge: '#ffd08a',
-  loopOff: '#7b8487',
-  loopOffEdge: '#a3abae',
-  outsideLoop: 'rgba(20,24,26,0.28)',
-  loopLine: 'rgba(255,162,28,0.55)',
+  loopLane: '#ebe4d2',
+  loopOn: TEAL,
+  loopOnEdge: TEAL,
+  loopOff: ink(0.35),
+  loopOffEdge: ink(0.35),
+  outsideLoop: 'rgba(120, 104, 70, 0.10)',
+  loopLine: 'rgba(75, 154, 149, 0.8)',
 };
 
-export const FONT = '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif';
+export const FONT = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace';
+export const SERIF = '"Instrument Serif", "Iowan Old Style", Georgia, serif';
 
-/** Live shades notes by velocity: soft notes are paler, loud notes are deep blue. */
+/** Notes are ink slots punched in the roll: softer notes are fainter ink. */
 function fillFor(velocity: number, hovered: boolean): string {
   const v = velocity / 127;
-  const l = 62 - v * 22 + (hovered ? 6 : 0);
-  return `hsl(196 ${35 + v * 65}% ${l}%)`;
+  return ink(Math.min(1, 0.3 + 0.7 * v + (hovered ? 0.15 : 0)));
 }
 
 // Precomputed per velocity, so drawing a frame doesn't build colour strings per note.
@@ -74,4 +85,29 @@ const FILLS = [false, true].map((hovered) => Array.from({ length: 128 }, (_, v) 
 
 export function noteFill(velocity: number, hovered: boolean): string {
   return FILLS[hovered ? 1 : 0][Math.max(0, Math.min(127, Math.round(velocity)))];
+}
+
+/** A small tile of paper grain (ink specks and faint fibres), generated once. */
+export function paperGrain(): HTMLCanvasElement {
+  const size = 180;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d')!;
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 1400; i++) {
+    g.fillStyle = ink(0.018 + rnd() * 0.035);
+    g.fillRect(rnd() * size, rnd() * size, rnd() < 0.85 ? 1 : 2, 1);
+  }
+  g.strokeStyle = ink(0.025);
+  g.lineWidth = 0.6;
+  for (let i = 0; i < 14; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.quadraticCurveTo(x + rnd() * 16 - 8, y + rnd() * 10 - 5, x + rnd() * 28 - 14, y + rnd() * 6 - 3);
+    g.stroke();
+  }
+  return c;
 }

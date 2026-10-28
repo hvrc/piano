@@ -55,7 +55,7 @@ export function mountTransportBar(
     if (!Number.isFinite(v)) return;
     const clamped = Math.round(Math.max(MIN_BPM, Math.min(MAX_BPM, v)) * 100) / 100;
     if (clamped !== store.bpm) transport.setBpm(clamped);
-    bpm.value = store.bpm.toFixed(2);
+    bpm.value = fmtBpm(store.bpm);
   };
   let dragY: number | null = null;
   let dragStart = 0;
@@ -85,7 +85,7 @@ export function mountTransportBar(
   bpm.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') bpm.blur();
     else if (e.key === 'Escape') {
-      bpm.value = store.bpm.toFixed(2);
+      bpm.value = fmtBpm(store.bpm);
       bpm.blur();
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
@@ -104,7 +104,7 @@ export function mountTransportBar(
     play.classList.toggle('on', store.playing);
     play.setAttribute('aria-label', store.playing ? 'Pause' : 'Play');
     play.title = store.playing ? 'Pause (Space)' : 'Play (Space)';
-    if (document.activeElement !== bpm) bpm.value = store.bpm.toFixed(2);
+    if (document.activeElement !== bpm) bpm.value = fmtBpm(store.bpm);
     draw.classList.toggle('on', store.drawMode);
     loop.classList.toggle('on', store.loop.enabled);
     grid.value = String(store.grid.division);
@@ -133,4 +133,9 @@ export function mountTransportBar(
       status.dataset.state = s;
     },
   };
+}
+
+/** Whole tempos read like a metronome marking (♩ = 120); others keep two decimals. */
+function fmtBpm(v: number): string {
+  return Number.isInteger(v) ? String(v) : v.toFixed(2);
 }

@@ -8,7 +8,7 @@ import { BEATS_PER_BAR, gridStep, isMultiple } from '../timeline/grid';
 import type { Viewport } from '../timeline/viewport';
 import { BEAT_H, KEYS_W, LABEL_W, LOOP_H, RULER_H, SCRUB_H, VEL_H, type Layout } from './layout';
 import type { Overlay } from './overlay';
-import { C, FONT, noteFill } from './theme';
+import { C, FONT, noteFill, paperGrain, SERIF } from './theme';
 
 const TICKS_H = SCRUB_H + BEAT_H; // ruler height below the loop lane
 
@@ -18,6 +18,7 @@ export class Renderer {
   /** Notes overlapping the visible beat range this frame: unselected first, then selected. */
   private visible: Note[] = [];
   private labelWidths = new Map<string, number>();
+  private grain: CanvasPattern | null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -28,6 +29,12 @@ export class Renderer {
     private playheadBeat: () => number,
   ) {
     this.g = canvas.getContext('2d', { alpha: false })!;
+    this.grain = this.g.createPattern(paperGrain(), 'repeat');
+  }
+
+  /** Text widths were measured with a fallback font until the web fonts finished loading. */
+  fontsLoaded(): void {
+    this.labelWidths.clear();
   }
 
   resize(): void {
@@ -109,6 +116,25 @@ export class Renderer {
     this.g.fillRect(Math.round(x), y, 1, h);
   }
 
+  /** A dotted pen line, like the ledger rules on the reference paper. */
+  private dotted(x: number, y: number, h: number, color: string, gap = 2): void {
+    const g = this.g;
+    g.strokeStyle = color;
+    g.lineWidth = 1;
+    g.setLineDash([1, gap]);
+    g.beginPath();
+    g.moveTo(Math.round(x) + 0.5, y);
+    g.lineTo(Math.round(x) + 0.5, y + h);
+    g.stroke();
+    g.setLineDash([]);
+  }
+
+  private paper(w: number, h: number, y = 0): void {
+    if (!this.grain) return;
+    this.g.fillStyle = this.grain;
+    this.g.fillRect(0, y, w, h);
+  }
+
   /** Smallest power-of-two bar spacing that keeps marks at least minPx apart. */
   private barSkip(minPx: number): number {
     let n = 1;
@@ -179,11 +205,12 @@ export class Renderer {
         }
       }
 
+      this.paper(vp.width, vp.height);
       const top = Math.max(0, vp.pitchToY(MAX_PITCH));
       const h = Math.min(vp.height, vp.pitchToY(MIN_PITCH) + rh) - top;
       const step = gridStep(store.grid);
-      if (step < 1 && step * vp.pxPerBeat >= 6) this.forSubBeats(step, (x) => this.vline(x, top, h, C.lineSub));
-      if (vp.pxPerBeat >= 8) this.forBeats((x) => this.vline(x, top, h, C.lineBeat));
+      if (step < 1 && step * vp.pxPerBeat >= 6) this.forSubBeats(step, (x) => this.dotted(x, top, h, C.lineSub, 4));
+      if (vp.pxPerBeat >= 8) this.forBeats((x) => this.dotted(x, top, h, C.lineBeat));
       this.forBars(this.barSkip(8), (x) => this.vline(x, top, h, C.lineBar));
 
       // Live greys out everything outside an active loop.
@@ -206,7 +233,7 @@ export class Renderer {
     const { g, vp, store, overlay } = this;
     const rh = vp.rowHeight;
     const [lo, hi] = this.visiblePitches();
-    const font = `600 ${Math.min(11, rh - 4)}px ${FONT}`;
+    const font = `500 ${Math.min(10, rh - 5)}px ${FONT}`;
     this.clipped(KEYS_W, RULER_H, vp.width, vp.height, () => {
       g.font = font;
       g.textBaseline = 'middle';
@@ -219,19 +246,16 @@ export class Renderer {
         const h = rh - 1;
         const hovered = overlay.hoverNote === n.id;
 
-        if (selected && h >= 7) {
-          // Live draws selected notes with a light outline around a dark inner edge.
-          g.fillStyle = C.noteSelectedOutline;
-          g.fillRect(x, y, w, h);
-          g.fillStyle = C.noteSelectedInner;
-          g.fillRect(x + 1, y + 1, w - 2, h - 2);
-          g.fillStyle = hovered ? C.noteSelectedHover : C.noteSelected;
-          g.fillRect(x + 2, y + 2, w - 4, h - 4);
-        } else {
-          g.fillStyle = C.noteBorder;
-          g.fillRect(x, y, w, h);
-          g.fillStyle = selected ? C.noteSelected : noteFill(n.velocity, hovered);
-          g.fillRect(x + 1, y + 1, w - 2, h - 2);
+        // Ink slots punched in the roll; the selection is inked in teal.
+        const r = Math.min(3, h / 2, w / 2);
+        g.beginPath();
+        g.roundRect(x, y + 1, w, h - 1, r);
+        g.fillStyle = selected ? (hovered ? C.noteSelectedHover : C.noteSelected) : noteFill(n.velocity, hovered);
+        g.fill();
+        if (selected) {
+          g.strokeStyle = C.noteSelectedOutline;
+          g.lineWidth = 1;
+          g.stroke();
         }
 
         // The pitch name, only when it fits inside the note.
@@ -252,8 +276,12 @@ export class Renderer {
     this.clipped(KEYS_W, RULER_H, vp.width, vp.height, () => {
       if (overlay.ghost) {
         const { pitch, start, duration } = overlay.ghost;
-        g.fillStyle = C.ghost;
-        g.fillRect(Math.round(vp.beatToX(start)), vp.pitchToY(pitch), Math.max(3, Math.round(duration * vp.pxPerBeat)), rh - 1);
+        g.strokeStyle = C.ghost;
+        g.setLineDash([2, 2]);
+        g.beginPath();
+        g.roundRect(Math.round(vp.beatToX(start)) + 0.5, vp.pitchToY(pitch) + 1.5, Math.max(3, Math.round(duration * vp.pxPerBeat)) - 1, rh - 3, 3);
+        g.stroke();
+        g.setLineDash([]);
       }
 
       if (overlay.marquee) {
@@ -272,7 +300,7 @@ export class Renderer {
 
       if (store.notes.length === 0 && !overlay.ghost) {
         g.fillStyle = C.hint;
-        g.font = `500 13px ${FONT}`;
+        g.font = `italic 19px ${SERIF}`;
         g.textAlign = 'center';
         g.textBaseline = 'middle';
         const hint = store.drawMode
@@ -298,6 +326,7 @@ export class Renderer {
       g.fillRect(0, 0, vp.width, TICKS_H);
       g.fillStyle = C.scrub;
       g.fillRect(0, 0, vp.width, SCRUB_H);
+      this.paper(vp.width, TICKS_H);
       g.fillStyle = C.divider;
       g.fillRect(0, TICKS_H - 1, vp.width, 1);
 
@@ -308,7 +337,7 @@ export class Renderer {
       if (ppb >= 8) this.forBeats((x) => this.vline(x, base - 6, 6, C.rulerTick));
 
       // Bars + labels
-      g.font = `11px ${FONT}`;
+      g.font = `500 10px ${FONT}`;
       g.textBaseline = 'middle';
       const labelEvery = this.barSkip(34);
       this.forBars(this.barSkip(8), (x, bar) => {
@@ -351,14 +380,20 @@ export class Renderer {
     const x0 = Math.round(vp.beatToX(loop.start));
     const x1 = Math.round(vp.beatToX(loop.end));
     if (x1 < 0 || x0 > vp.width) return;
+    // The brace, drawn like the roll's dotted expression line: a dotted rule with end ticks.
     const w = Math.max(4, x1 - x0);
-    // The brace: a bar with downward hooks at both ends, like Live's.
-    g.fillStyle = loop.enabled ? C.loopOn : C.loopOff;
-    g.fillRect(x0, 2, w, LOOP_H - 5);
-    g.fillRect(x0, 2, 2, LOOP_H - 2);
-    g.fillRect(x0 + w - 2, 2, 2, LOOP_H - 2);
-    g.fillStyle = loop.enabled ? C.loopOnEdge : C.loopOffEdge;
-    g.fillRect(x0, 2, w, 1);
+    const color = loop.enabled ? C.loopOn : C.loopOff;
+    g.strokeStyle = color;
+    g.lineWidth = 2;
+    g.setLineDash([2, 3]);
+    g.beginPath();
+    g.moveTo(x0, LOOP_H / 2);
+    g.lineTo(x0 + w, LOOP_H / 2);
+    g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = color;
+    g.fillRect(x0, 2, 2, LOOP_H - 4);
+    g.fillRect(x0 + w - 2, 2, 2, LOOP_H - 4);
   }
 
   // ---------------------------------------------------------------- velocity lane
@@ -370,13 +405,14 @@ export class Renderer {
     // Label column on the left.
     g.fillStyle = C.labelColumn;
     g.fillRect(0, top, KEYS_W, VEL_H);
+    // Dynamics instead of numbers: a little musical twist on Live's 1–127 scale.
     g.fillStyle = C.velLabel;
-    g.font = `500 10px ${FONT}`;
+    g.font = `italic 15px ${SERIF}`;
     g.textBaseline = 'middle';
-    g.fillText('Velocity', 6, top + VEL_H / 2);
     g.textAlign = 'right';
-    g.fillText('127', KEYS_W - 6, layout.velocityToY(127));
-    g.fillText('1', KEYS_W - 6, layout.velocityToY(1));
+    g.fillText('ff', KEYS_W - 8, layout.velocityToY(118));
+    g.fillText('mf', KEYS_W - 8, layout.velocityToY(72));
+    g.fillText('pp', KEYS_W - 8, layout.velocityToY(22));
     g.textAlign = 'left';
     g.fillStyle = C.divider;
     g.fillRect(0, top, KEYS_W, 1);
@@ -387,8 +423,17 @@ export class Renderer {
       g.translate(KEYS_W, 0);
       g.fillStyle = C.velLane;
       g.fillRect(0, top, vp.width, VEL_H);
-      g.fillStyle = C.velGuide;
-      for (const v of [32, 64, 96, 127]) g.fillRect(0, Math.round(layout.velocityToY(v)), vp.width, 1);
+      this.paper(vp.width, VEL_H, top);
+      g.strokeStyle = C.velGuide;
+      g.setLineDash([1, 3]);
+      for (const v of [22, 72, 118]) {
+        const y = Math.round(layout.velocityToY(v)) + 0.5;
+        g.beginPath();
+        g.moveTo(0, y);
+        g.lineTo(vp.width, y);
+        g.stroke();
+      }
+      g.setLineDash([]);
       this.forBars(this.barSkip(8), (x) => this.vline(x, top, VEL_H, C.velGuide));
 
       const base = layout.velocityToY(0);
@@ -397,21 +442,23 @@ export class Renderer {
         const x = Math.round(vp.beatToX(n.start)) + 0.5;
         const y = layout.velocityToY(n.velocity);
         const hot = overlay.velocityNote === n.id;
-        // Stem, a faint bar across the note's length, and a round head (Live's velocity editor).
-        g.fillStyle = selected ? C.noteSelected : noteFill(n.velocity, hot);
+        // An ink stem with an open punch-hole head (Live's velocity editor, on paper).
+        const color = selected ? C.noteSelected : noteFill(n.velocity, hot);
+        g.fillStyle = color;
         g.fillRect(x - 0.5, y, hot ? 2 : 1, base - y);
-        g.globalAlpha = 0.35;
-        g.fillRect(x, Math.round(y) - 1, Math.max(0, n.duration * vp.pxPerBeat - 2), 2);
+        g.globalAlpha = 0.25;
+        g.fillRect(x, Math.round(y) - 0.5, Math.max(0, n.duration * vp.pxPerBeat - 2), 1);
         g.globalAlpha = 1;
         g.beginPath();
         g.arc(x, y, hot ? 4 : 3, 0, Math.PI * 2);
+        g.fillStyle = C.velLane;
         g.fill();
-        g.strokeStyle = selected ? C.noteSelectedOutline : C.noteBorder;
-        g.lineWidth = 1;
+        g.strokeStyle = color;
+        g.lineWidth = selected || hot ? 2 : 1.25;
         g.stroke();
         if (hot) {
           g.fillStyle = C.velValue;
-          g.font = `600 10px ${FONT}`;
+          g.font = `500 10px ${FONT}`;
           g.fillText(String(n.velocity), x + 7, Math.max(top + 8, y));
         }
       }
