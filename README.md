@@ -56,7 +56,7 @@ The ◐ button cycles through every theme, and your choice is remembered:
 
 Each theme has a CSS variable block (`:root[data-theme=…]` in `styles.css`) plus a canvas palette (`render/theme.ts`).
 
-Fonts: Sixtyfour for text, numbers and buttons, and Ballet for the handwritten titles and labels (Google Fonts).
+Fonts: Bungee Hairline for text, numbers and buttons, and Ballet for the handwritten titles and labels (Google Fonts).
 
 ## Architecture
 

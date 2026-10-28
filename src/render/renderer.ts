@@ -254,7 +254,7 @@ export class Renderer {
     const { g, vp, store, overlay } = this;
     const rh = vp.rowHeight;
     const [lo, hi] = this.visiblePitches();
-    const font = `${Math.min(8, rh - 6)}px ${FONT}`;
+    const font = `${Math.min(11, rh - 4)}px ${FONT}`;
     this.clipped(KEYS_W, RULER_H, vp.width, vp.height, () => {
       g.font = font;
       g.textBaseline = 'middle';
@@ -358,7 +358,7 @@ export class Renderer {
       if (ppb >= 8) this.forBeats((x) => this.vline(x, base - 6, 6, C.rulerTick));
 
       // Bars + labels
-      g.font = `8px ${FONT}`;
+      g.font = `11px ${FONT}`;
       g.textBaseline = 'middle';
       const labelEvery = this.barSkip(34);
       this.forBars(this.barSkip(8), (x, bar) => {
@@ -478,7 +478,7 @@ export class Renderer {
         g.stroke();
         if (hot) {
           g.fillStyle = C.velValue;
-          g.font = `8px ${FONT}`;
+          g.font = `11px ${FONT}`;
           g.fillText(String(n.velocity), x + 7, Math.max(top + 8, y));
         }
       }
@@ -501,7 +501,7 @@ export class Renderer {
       const kb = this.store.keyboard;
       const kw = KEYS_W - 1;
       const [lo, hi] = this.visiblePitches();
-      g.font = `${Math.max(7, Math.min(8, rh - 6))}px ${FONT}`;
+      g.font = `${Math.max(9, Math.min(11, rh - 4))}px ${FONT}`;
       g.textBaseline = 'middle';
       g.textAlign = 'right';
 

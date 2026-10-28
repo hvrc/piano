@@ -182,7 +182,7 @@ export function setCanvasTheme(name: ThemeName): void {
 }
 setCanvasTheme('paper');
 
-export const FONT = '"Sixtyfour", ui-monospace, "SF Mono", Menlo, monospace';
+export const FONT = '"Bungee Hairline", ui-monospace, "SF Mono", Menlo, monospace';
 /** The handwriting face (Ballet) for titles and labels. */
 export const SERIF = '"Ballet", "Iowan Old Style", Georgia, cursive';
 
