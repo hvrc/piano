@@ -61,7 +61,7 @@ export class Session {
     return (
       s.notes !== this.saved.notes ||
       s.bpm !== this.saved.bpm ||
-      s.loop !== this.saved.loop ||
+      !sameLoop(s.loop, this.saved.loop) ||
       this.name !== this.saved.name
     );
   }
@@ -251,6 +251,10 @@ export class Session {
     while (taken.has(`${base} ${i}`)) i++;
     return `${base} ${i}`;
   }
+}
+
+function sameLoop(a: LoopSettings, b: LoopSettings): boolean {
+  return a.enabled === b.enabled && a.start === b.start && a.end === b.end;
 }
 
 function toData(n: Note): MidiNote {
