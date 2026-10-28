@@ -6,7 +6,7 @@ import { isBlackKey, pitchName, MAX_PITCH, MIN_PITCH } from '../music/pitch';
 import { KEYBOARD_SPAN, type Store } from '../state/store';
 import { BEATS_PER_BAR, gridStep, isMultiple } from '../timeline/grid';
 import type { Viewport } from '../timeline/viewport';
-import { BEAT_H, KEYS_W, LOOP_H, RULER_H, SCRUB_H, VEL_H, type Layout } from './layout';
+import { BEAT_H, KEYS_W, LOOP_H, PANEL_RADIUS, RULER_H, SCRUB_H, VEL_H, type Layout } from './layout';
 import type { Overlay } from './overlay';
 import { C, FONT, noteFill, paperGrain, SERIF } from './theme';
 
@@ -53,17 +53,33 @@ export class Renderer {
   render(): void {
     const { g, layout } = this;
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    g.fillStyle = C.bg;
+    // The page's paper shows around two rounded panels: the roll, and the velocity lane.
+    g.fillStyle = C.page;
     g.fillRect(0, 0, layout.width, layout.height);
-
     this.collectVisible();
-    this.drawGrid();
-    this.drawNotes();
-    this.drawGridOverlays();
-    this.drawRuler();
-    this.drawKeys(this.activePitches());
-    this.drawVelocity();
-    this.drawCorner();
+
+    this.inPanel(0, layout.rollHeight, () => {
+      g.fillStyle = C.bg;
+      g.fillRect(0, 0, layout.width, layout.rollHeight);
+      this.drawGrid();
+      this.drawNotes();
+      this.drawGridOverlays();
+      this.drawRuler();
+      this.drawKeys(this.activePitches());
+      this.drawCorner();
+    });
+    this.inPanel(layout.velocityTop, VEL_H, () => this.drawVelocity());
+  }
+
+  /** Clip drawing to a full-width panel with rounded corners. */
+  private inPanel(y: number, h: number, draw: () => void): void {
+    const g = this.g;
+    g.save();
+    g.beginPath();
+    g.roundRect(0, y, this.layout.width, h, PANEL_RADIUS);
+    g.clip();
+    draw();
+    g.restore();
   }
 
   // ---------------------------------------------------------------- helpers
@@ -415,7 +431,6 @@ export class Renderer {
     g.fillText('pp', KEYS_W - 8, layout.velocityToY(22));
     g.textAlign = 'left';
     g.fillStyle = C.divider;
-    g.fillRect(0, top, KEYS_W, 1);
     g.fillRect(KEYS_W - 1, top, 1, VEL_H);
 
     // The lane itself, drawn in canvas y (only x is shifted to the grid).
@@ -465,8 +480,6 @@ export class Renderer {
 
       const px = this.playheadX();
       if (px !== null) this.vline(px, top, VEL_H, this.playheadColor);
-      g.fillStyle = C.divider;
-      g.fillRect(0, top, vp.width, 1);
     }, false);
   }
 

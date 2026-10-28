@@ -9,9 +9,12 @@ const MAX_ROW = 40;
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
+/** Breathing room before beat 1, so bar 1 doesn't sit on the keyboard's edge. */
+const START_GUTTER = 16;
+
 export class Viewport {
   pxPerBeat = 72;
-  scrollX = 0;
+  scrollX = -START_GUTTER;
   scrollY = 0;
   width = 0;
   height = 0;
@@ -52,9 +55,14 @@ export class Viewport {
   }
 
   scrollTo(x: number, y: number): void {
-    this.scrollX = clamp(x, 0, this.maxScrollX);
+    this.scrollX = clamp(x, -START_GUTTER, this.maxScrollX);
     this.scrollY = clamp(y, 0, this.maxScrollY);
     this.onChange();
+  }
+
+  /** Scroll horizontally back to the start of the roll. */
+  scrollToStart(): void {
+    this.scrollTo(-START_GUTTER, this.scrollY);
   }
 
   scrollBy(dx: number, dy: number): void {

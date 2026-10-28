@@ -67,7 +67,7 @@ transport.onJump = (beat) => follow.reveal(beat);
 /** After opening a track: back to the start, centred on its notes. */
 function showDocument(): void {
   const pitches = store.notes.map((n) => n.pitch).sort((a, b) => a - b);
-  vp.scrollTo(0, vp.scrollY);
+  vp.scrollToStart();
   vp.centerOnPitch(pitches.length ? pitches[Math.floor(pitches.length / 2)] : DEFAULT_CENTRE_PITCH);
   follow.reveal();
 }

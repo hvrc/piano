@@ -5,8 +5,10 @@
 //   │        ├ scrub strip (bar numbers)       │  RULER_H
 //   │        ├ beat strip (ticks, drag = zoom) │
 //   ├ keys   ┼ grid (notes) ───────────────────┤
-//   ├ corner ┼ velocity lane ──────────────────┤  VEL_H
-//   └────────┴─────────────────────────────────┘
+//   ╰────────┴─────────────────────────────────╯
+//     (PANEL_GAP of paper)                          the two panels have rounded corners
+//   ╭ corner ┬ velocity lane ──────────────────╮  VEL_H
+//   ╰────────┴─────────────────────────────────╯
 //    KEYS_W = the piano keys (note names are written on them)
 import { clampVelocity } from '../model/note';
 
@@ -16,6 +18,8 @@ export const SCRUB_H = 18;
 export const BEAT_H = 16;
 export const RULER_H = LOOP_H + SCRUB_H + BEAT_H;
 export const VEL_H = 76;
+export const PANEL_GAP = 8; // paper between the roll and the velocity lane
+export const PANEL_RADIUS = 14;
 const VEL_PAD_TOP = 9;
 const VEL_PAD_BOTTOM = 6;
 
@@ -41,16 +45,22 @@ export class Layout {
   }
 
   get gridHeight(): number {
-    return Math.max(0, this.height - RULER_H - VEL_H);
+    return Math.max(0, this.height - RULER_H - PANEL_GAP - VEL_H);
   }
 
   get velocityTop(): number {
     return this.height - VEL_H;
   }
 
+  /** Height of the upper panel (ruler + keys + grid). */
+  get rollHeight(): number {
+    return RULER_H + this.gridHeight;
+  }
+
   regionAt({ x, y }: Point): Region {
     if (y < RULER_H) return x < KEYS_W ? 'corner' : y < LOOP_H ? 'loop' : y < LOOP_H + SCRUB_H ? 'scrub' : 'beat';
     if (y >= this.velocityTop) return x < KEYS_W ? 'corner' : 'velocity';
+    if (y >= this.velocityTop - PANEL_GAP) return 'corner'; // the gap between the panels
     return x < KEYS_W ? 'keys' : 'grid';
   }
 

@@ -11,6 +11,7 @@ export const HIGHLIGHT = '#f3e48c';
 export const GREEN = '#9cc46a';
 
 export const C = {
+  page: PAPER, // the page around the canvas panels
   bg: '#ebe4d2', // outside the pitch range
   rowWhite: PAPER,
   rowBlack: '#ece5d3',

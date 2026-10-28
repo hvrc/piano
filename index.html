@@ -12,6 +12,7 @@
   <body>
     <header class="bar">
       <div class="group">
+        <div class="island">
         <button id="btn-sidebar" class="icon" title="Show / hide tracks" aria-label="Toggle tracks sidebar">
           <svg viewBox="0 0 16 16"><path d="M2 3h12v10H2zm1.5 1.5v7H6v-7zm4 0v7h5v-7z" /></svg>
         </button>
@@ -27,7 +28,8 @@
           <svg viewBox="0 0 16 16"><path d="M7 2h2v6.2l2.3-2.3 1.4 1.4L8 12 3.3 7.3l1.4-1.4L7 8.2zM3 13h10v1.5H3z" /></svg>
         </button>
         <input id="file-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
-        <span class="sep"></span>
+        </div>
+        <div class="island">
         <button id="btn-start" class="icon" title="Return to start (Home)" aria-label="Return to start">
           <svg viewBox="0 0 16 16"><rect x="3" y="3" width="2" height="10" /><path d="M13 3v10L6 8z" /></svg>
         </button>
@@ -43,8 +45,10 @@
           <span class="metronome">♩ =</span>
           <input id="bpm" inputmode="decimal" autocomplete="off" spellcheck="false" />
         </label>
+        </div>
       </div>
       <div class="group">
+        <div class="island">
         <button id="btn-keys" class="toggle keys" title="Play notes with the computer keyboard (M)" aria-label="Computer keyboard">
           <svg viewBox="0 0 16 16"><path d="M1.5 4h13v8h-13zM3 5.5v1.5h1.5V5.5zm2.5 0v1.5H7V5.5zm2.5 0v1.5h1.5V5.5zm2.5 0v1.5H12V5.5zM3 8v1.5h1.5V8zm2.5 0v1.5H7V8zm2.5 0v1.5h1.5V8zm2.5 0v1.5H12V8zM4.5 10.5V11h7v-.5z" /></svg>
           <span id="keys-info"></span>
@@ -52,14 +56,16 @@
         <button id="btn-draw" class="toggle" title="Draw mode (B)" aria-label="Draw mode">
           <svg viewBox="0 0 16 16"><path d="M2.5 13.5l.9-3.3 7.4-7.4 2.4 2.4-7.4 7.4z" /></svg>
         </button>
-        <span class="sep"></span>
+        </div>
+        <div class="island">
         <label class="grid-label" title="Grid size (1 / 2 to narrow / widen)">
           <span>Grid</span>
           <select id="grid"></select>
         </label>
         <button id="btn-triplet" class="toggle text" title="Triplet grid (3)">3</button>
         <button id="btn-boneless" class="toggle text" title="Boneless (4): nothing snaps to the grid — notes go exactly where you put them">Boneless</button>
-        <span class="sep"></span>
+        </div>
+        <div class="island">
         <button id="btn-legato" class="text" title="Legato (⇧⌘L): stretch each note to the start of the next. Uses the selection, or all notes.">Legato</button>
         <div class="pop-wrap">
           <button id="btn-humanize" class="text" title="Humanize: nudge notes slightly earlier or later at random">Humanize</button>
@@ -70,21 +76,25 @@
             <button id="hum-apply" class="text primary">Humanize</button>
           </div>
         </div>
-        <span class="sep"></span>
+        </div>
+        <div class="island">
         <span id="status" class="status"></span>
         <button id="btn-help" class="icon" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
+        </div>
       </div>
     </header>
 
     <div class="body">
       <aside class="sidebar" aria-label="Tracks">
-        <div class="side-head">
-          <span class="brand">piano <em>roll book</em></span>
-          <button id="btn-new" class="text" title="Start a new empty roll">+ New</button>
+        <div class="side-main island-panel">
+          <div class="side-head">
+            <span class="brand">piano <em>roll book</em></span>
+            <button id="btn-new" class="text" title="Start a new empty roll">+ New</button>
+          </div>
+          <ul id="track-list" class="track-list"></ul>
+          <p id="track-empty" class="side-empty">No saved tracks yet.<br />Press ⌘S to save this roll.</p>
         </div>
-        <ul id="track-list" class="track-list"></ul>
-        <p id="track-empty" class="side-empty">No saved tracks yet.<br />Press ⌘S to save this roll.</p>
-        <div id="library" class="library"></div>
+        <div id="library" class="library island-panel"></div>
       </aside>
       <main class="roll"><canvas id="roll-canvas"></canvas></main>
     </div>
