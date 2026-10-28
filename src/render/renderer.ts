@@ -135,16 +135,25 @@ export class Renderer {
     // Notes
     for (const n of store.notes) {
       if (noteEnd(n) < cur || n.start > cur + beatsVisible || n.pitch < lo || n.pitch > hi) continue;
-      const { x, w } = keyRect(n.pitch);
+      // Every bar is the same width, centred over its key. Key centres can be only half a white
+      // key apart (a white key and its sharp), so bars stay just under that to never touch.
+      const key = keyRect(n.pitch);
+      const w = whiteW / 2 - 2;
+      const x = key.x + key.w / 2 - w / 2;
       const y1 = Math.min(kbTop, yOf(n.start));
       const y0 = yOf(noteEnd(n));
       if (y1 - y0 < 1) continue;
       const sounding = n.start <= cur && cur < noteEnd(n);
       const color = n.color ?? prefs.value.noteColor ?? C.noteSelected;
       g.beginPath();
-      g.roundRect(x + 2, y0, w - 4, y1 - y0, Math.min(6, (w - 4) / 2));
+      g.roundRect(x, y0, w, y1 - y0, Math.min(6, w / 2));
       g.fillStyle = noteFill(sounding ? 127 : n.velocity, sounding, color);
       g.fill();
+      if (isBlackKey(n.pitch)) {
+        // Sharps a shade darker, as in Synthesia.
+        g.fillStyle = 'rgba(0, 0, 0, 0.22)';
+        g.fill();
+      }
     }
 
     // Keyboard: white keys, then black keys on top, each glowing while its note sounds.
