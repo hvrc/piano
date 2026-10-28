@@ -6,7 +6,7 @@ import { isBlackKey, pitchName, MAX_PITCH, MIN_PITCH } from '../music/pitch';
 import { KEYBOARD_SPAN, type Store } from '../state/store';
 import { BEATS_PER_BAR, gridStep, isMultiple } from '../timeline/grid';
 import type { Viewport } from '../timeline/viewport';
-import { BEAT_H, KEYS_W, LABEL_W, LOOP_H, RULER_H, SCRUB_H, VEL_H, type Layout } from './layout';
+import { BEAT_H, KEYS_W, LOOP_H, RULER_H, SCRUB_H, VEL_H, type Layout } from './layout';
 import type { Overlay } from './overlay';
 import { C, FONT, noteFill, paperGrain, SERIF } from './theme';
 
@@ -476,18 +476,16 @@ export class Renderer {
     const { g, vp, overlay } = this;
     const rh = vp.rowHeight;
     this.clipped(0, RULER_H, KEYS_W, vp.height, () => {
-      g.fillStyle = C.labelColumn;
-      g.fillRect(0, 0, LABEL_W, vp.height);
       g.fillStyle = C.bg;
-      g.fillRect(LABEL_W, 0, KEYS_W - LABEL_W, vp.height);
+      g.fillRect(0, 0, KEYS_W, vp.height);
 
-      // Live's piano ruler: one full-width key per row, names in a column to the left.
+      // One full-width key per row (Live's piano ruler), with the note name written on the key.
       const kb = this.store.keyboard;
-      const kx = LABEL_W + 1;
-      const kw = KEYS_W - LABEL_W - 2;
+      const kw = KEYS_W - 1;
       const [lo, hi] = this.visiblePitches();
-      g.font = `500 ${Math.max(9, Math.min(11, rh - 3))}px ${FONT}`;
+      g.font = `500 ${Math.max(9, Math.min(10, rh - 4))}px ${FONT}`;
       g.textBaseline = 'middle';
+      g.textAlign = 'right';
 
       for (let p = lo; p <= hi; p++) {
         const y = vp.pitchToY(p);
@@ -497,23 +495,22 @@ export class Renderer {
         g.fillStyle = lit
           ? black ? C.keyActiveBlack : C.keyActive
           : black ? (hover ? C.keyBlackHover : C.keyBlack) : hover ? C.keyWhiteHover : C.keyWhite;
-        g.fillRect(kx, y, kw, rh);
+        g.fillRect(0, y, kw, rh);
         if (p % 12 === 0 || p % 12 === 5) {
           g.fillStyle = C.keyWhiteLine;
-          g.fillRect(kx, y + rh - 1, kw, 1);
+          g.fillRect(0, y + rh - 1, kw, 1);
         }
         if (kb.enabled && p >= kb.base && p <= kb.base + KEYBOARD_SPAN) {
           // Mark the range the computer keyboard plays, as Live does.
           g.fillStyle = C.keyboardRange;
-          g.fillRect(LABEL_W - 3, y, 3, rh);
+          g.fillRect(0, y, 3, rh);
         }
         if ((p % 12 === 0 && rh >= 9) || hover) {
-          g.fillStyle = hover ? C.labelHover : C.label;
-          g.fillText(pitchName(p), 4, y + rh / 2);
+          g.fillStyle = black || lit ? C.keyNameOnDark : hover ? C.labelHover : C.label;
+          g.fillText(pitchName(p), kw - 5, y + rh / 2);
         }
       }
-      g.fillStyle = C.labelDivider;
-      g.fillRect(LABEL_W, 0, 1, vp.height);
+      g.textAlign = 'left';
       g.fillStyle = C.keysBorder;
       g.fillRect(KEYS_W - 1, 0, 1, vp.height);
     });

@@ -17,7 +17,9 @@ export function mountSidebar(session: Session): void {
   $('btn-new').addEventListener('click', () => void session.newTrack());
 
   const library = $('library');
-  library.innerHTML = 'Tracks are saved online to this browser’s private library.<br />';
+  const note = document.createElement('span');
+  note.textContent = 'saved online · private to this browser';
+  library.replaceChildren(note);
   const copy = document.createElement('button');
   copy.className = 'text';
   copy.textContent = 'Copy library link';

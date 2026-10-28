@@ -41,10 +41,10 @@ export const C = {
   rulerTick: ink(0.5),
   divider: ink(0.85),
 
-  labelColumn: '#efe8d7',
+  labelColumn: '#efe8d7', // the velocity lane's left column
   label: ink(0.75),
   labelHover: ink(1),
-  labelDivider: ink(0.3),
+  keyNameOnDark: PAPER,
   keysBorder: ink(0.85),
   keyWhite: '#fbf8ef',
   keyWhiteHover: HIGHLIGHT,

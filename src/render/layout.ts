@@ -7,11 +7,10 @@
 //   ├ keys   ┼ grid (notes) ───────────────────┤
 //   ├ corner ┼ velocity lane ──────────────────┤  VEL_H
 //   └────────┴─────────────────────────────────┘
-//    KEYS_W = LABEL_W (note names) + key strip
+//    KEYS_W = the piano keys (note names are written on them)
 import { clampVelocity } from '../model/note';
 
-export const LABEL_W = 34;
-export const KEYS_W = 66;
+export const KEYS_W = 52;
 export const LOOP_H = 12;
 export const SCRUB_H = 18;
 export const BEAT_H = 16;
