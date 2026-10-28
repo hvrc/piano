@@ -74,6 +74,21 @@ export class Renderer {
       this.drawCorner();
     });
     this.inPanel(layout.velocityTop, VEL_H, () => this.drawVelocity());
+    // Last and unclipped: the handwritten dynamics' swashes go in front of everything.
+    this.drawDynamics();
+  }
+
+  /** ff / mf / pp beside the velocity lane: a little musical twist on Live's 1–127 scale. */
+  private drawDynamics(): void {
+    const { g, layout } = this;
+    g.fillStyle = C.velLabel;
+    g.font = `19px ${SERIF}`;
+    g.textBaseline = 'middle';
+    g.textAlign = 'right';
+    g.fillText('ff', KEYS_W - 8, layout.velocityToY(118));
+    g.fillText('mf', KEYS_W - 8, layout.velocityToY(72));
+    g.fillText('pp', KEYS_W - 8, layout.velocityToY(22));
+    g.textAlign = 'left';
   }
 
   /** Clip drawing to a full-width panel with rounded corners. */
@@ -426,15 +441,6 @@ export class Renderer {
     // Label column on the left.
     g.fillStyle = C.labelColumn;
     g.fillRect(0, top, KEYS_W, VEL_H);
-    // Dynamics instead of numbers: a little musical twist on Live's 1–127 scale.
-    g.fillStyle = C.velLabel;
-    g.font = `19px ${SERIF}`;
-    g.textBaseline = 'middle';
-    g.textAlign = 'right';
-    g.fillText('ff', KEYS_W - 8, layout.velocityToY(118));
-    g.fillText('mf', KEYS_W - 8, layout.velocityToY(72));
-    g.fillText('pp', KEYS_W - 8, layout.velocityToY(22));
-    g.textAlign = 'left';
     g.fillStyle = C.divider;
     g.fillRect(KEYS_W - 1, top, 1, VEL_H);
 

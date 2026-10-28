@@ -5,6 +5,9 @@ import { $ } from './dom';
 
 export function mountFileBar(session: Session, opts: { onToggleSidebar: () => void }): { openFilePicker: () => void } {
   const name = $<HTMLInputElement>('track-name');
+  // Fields clip their text, which would cut Ballet's swashes; when not editing, an unclipped
+  // label in front shows the name instead.
+  const label = $<HTMLSpanElement>('track-name-label');
   const dirty = $<HTMLSpanElement>('dirty');
   const save = $<HTMLButtonElement>('btn-save');
   const open = $<HTMLButtonElement>('btn-open');
@@ -15,6 +18,10 @@ export function mountFileBar(session: Session, opts: { onToggleSidebar: () => vo
   let before = '';
   name.addEventListener('focus', () => (before = name.value));
   name.addEventListener('input', () => session.setName(name.value));
+  const syncLabel = () => {
+    label.textContent = session.name || 'Untitled';
+    label.classList.toggle('placeholder', !session.name);
+  };
   name.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') name.blur();
     if (e.key === 'Escape') {
@@ -48,6 +55,7 @@ export function mountFileBar(session: Session, opts: { onToggleSidebar: () => vo
 
   const sync = () => {
     if (document.activeElement !== name) name.value = session.name;
+    syncLabel();
     dirty.classList.toggle('show', session.dirty);
     save.classList.toggle('attention', session.dirty);
     save.title = session.trackId ? 'Save (⌘S) · ⇧⌘S saves a copy' : 'Save as a new track (⌘S)';
