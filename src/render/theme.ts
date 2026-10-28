@@ -39,13 +39,13 @@ export const C = {
   rulerText: ink(0.9),
   rulerTextDim: ink(0.45),
   rulerTick: ink(0.5),
-  divider: ink(0.85),
+  divider: ink(0.16), // soft hairlines between bands (matches --hairline in CSS)
 
   labelColumn: '#efe8d7', // the velocity lane's left column
   label: ink(0.75),
   labelHover: ink(1),
   keyNameOnDark: PAPER,
-  keysBorder: ink(0.85),
+  keysBorder: ink(0.16),
   keyWhite: '#fbf8ef',
   keyWhiteHover: HIGHLIGHT,
   keyWhiteLine: ink(0.55),
