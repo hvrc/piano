@@ -24,4 +24,3 @@ export const MAX_BPM = 400;
 export const MAX_NOTES = 10_000; // keeps a Firestore document well under its 1 MiB limit
 export const MAX_BEAT = 100_000;
 export const TRACK_ID = /^[A-Za-z0-9-]{8,64}$/;
-export const LIBRARY_KEY = /^[A-Za-z0-9_-]{22,64}$/;

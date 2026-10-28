@@ -44,9 +44,19 @@ Octave naming follows Live: MIDI 60 = **C3**, full range C-2 (0) to G8 (127).
 
 Playback follows the playhead like Live 12's "Scroll" follow mode: once the playhead reaches the middle of the view it stays there and the grid scrolls smoothly underneath. A loop that fits on screen is kept in view instead, so the playhead cycles inside it. If you scroll the playhead out of sight, following pauses until it's visible again.
 
-## Saved tracks and libraries
+## Saved tracks
 
-There are no accounts. Each browser makes a random **library key** (stored in localStorage) and sends it as `X-Library-Key`. The server keeps tracks under the key's SHA-256, so a library can only be read with its key, and the database never holds the key itself. **Copy library link** in the sidebar gives a `/#library=…` URL. Opening it on another device switches that device to the same library (it asks first if the device already has tracks). Anyone with the link can edit that library, so treat it like a password. If browser data is cleared, the link is the only way back.
+Saved tracks are **public**: there is one shared list, and everyone who visits sees it and can open, overwrite or delete any track in it. The list refreshes when you come back to the tab. The server still validates every track and rate-limits writes.
+
+## Themes
+
+The ◐ button cycles through every theme, and your choice is remembered:
+- **Paper**: warm paper, black ink and a few light inks.
+- **Espresso**: after Streamcell's theme of the same name. A warm brown-black room, cream ink, latte notes, a steel-blue selection and loop, and a honey playhead.
+
+Each theme has a CSS variable block (`:root[data-theme=…]` in `styles.css`) plus a canvas palette (`render/theme.ts`).
+
+Fonts: Bungee Hairline for text, numbers and buttons, and Fleur De Leah for the handwritten titles and labels (Google Fonts).
 
 ## Architecture
 
@@ -103,7 +113,7 @@ Options for better sound later, roughly in order of effort:
 |---|---|
 | Service | Cloud Run `piano`, project `hvrc-web`, us-east1. Public, 0–3 instances, 512 MiB |
 | Domain | https://piano.hvrc.place (Cloud Run domain mapping; Squarespace DNS `CNAME piano → ghs.googlehosted.com`) |
-| Data | Firestore Native database `piano` (us-east1): `libraries/{sha256(key)}/tracks/{id}`. Delete protection on, point-in-time recovery 7 days, daily backups kept 7 days |
+| Data | Firestore Native database `piano` (us-east1): `tracks/{id}` (one public list). Tracks saved before tracks were public are under `libraries/*/tracks`; `node scripts/migrate-to-public.mjs --apply` copies them into the public list. Delete protection on, point-in-time recovery 7 days, daily backups kept 7 days |
 | Auto-deploy | Push to **`release`** → GitHub Actions (`.github/workflows/deploy.yml`): typecheck + tests, Docker build, push to `us-east1-docker.pkg.dev/hvrc-web/cloud-run-source-deploy/piano:<sha>`, `gcloud run deploy` |
 | Auth for CI | Keyless, via Workload Identity Federation. Pool `github` and provider `github` only accept tokens from repositories owned by `hvrc`. Only `hvrc/piano` may impersonate `piano-deployer@hvrc-web.iam.gserviceaccount.com`, which holds `run.developer` on this service only, `iam.serviceAccountUser` on the runtime SA, and `artifactregistry.writer` on the registry |
 | Manual fallback | `./deploy.sh` (Cloud Build from source; `--map` recreates the domain mapping) |

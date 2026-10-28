@@ -6,23 +6,26 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 const PORT = 5291;
 let BASE = process.env.BASE ?? '';
 let server: ChildProcess | undefined;
 let dir = '';
 
-const key = () => randomBytes(18).toString('base64url');
-const libA = key();
-const libB = key();
-
-async function call(method: string, path: string, lib: string | null, body?: unknown) {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (lib) headers['X-Library-Key'] = lib;
-  const res = await fetch(BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+async function call(method: string, path: string, body?: unknown) {
+  const res = await fetch(BASE + path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { status: res.status, body: (await res.json().catch(() => null)) as any };
+}
+
+/** Tracks are public and shared, so tests only look at the ones they created. */
+async function find(id: string) {
+  return (await call('GET', '/api/tracks')).body.tracks.find((t: { id: string }) => t.id === id);
 }
 
 const track = (over: Record<string, unknown> = {}) => ({
@@ -58,59 +61,43 @@ after(() => {
 });
 
 test('health check', async () => {
-  assert.equal((await call('GET', '/_healthz', null)).status, 200);
-});
-
-test('requires a valid library key', async () => {
-  assert.equal((await call('GET', '/api/tracks', null)).status, 401);
-  assert.equal((await call('GET', '/api/tracks', 'short')).status, 401);
+  assert.equal((await call('GET', '/_healthz')).status, 200);
 });
 
 test('save, list, update and delete a track', async () => {
   const id = randomUUID();
-  assert.deepEqual((await call('GET', '/api/tracks', libA)).body, { tracks: [] });
+  assert.equal(await find(id), undefined);
 
-  const saved = await call('PUT', `/api/tracks/${id}`, libA, track());
+  const saved = await call('PUT', `/api/tracks/${id}`, track());
   assert.equal(saved.status, 200);
   assert.equal(saved.body.track.name, 'Test melody');
 
-  const listed = (await call('GET', '/api/tracks', libA)).body.tracks;
-  assert.equal(listed.length, 1);
-  assert.deepEqual(listed[0].notes, track().notes); // exact, including thirds of a beat
-  const createdAt = listed[0].createdAt;
+  const listed = await find(id);
+  assert.deepEqual(listed.notes, track().notes); // exact, including thirds of a beat
+  const createdAt = listed.createdAt;
 
   await new Promise((r) => setTimeout(r, 5));
-  const updated = await call('PUT', `/api/tracks/${id}`, libA, track({ name: 'Renamed', bpm: 90, createdAt: 1 }));
+  const updated = await call('PUT', `/api/tracks/${id}`, track({ name: 'Renamed', bpm: 90, createdAt: 1 }));
   assert.equal(updated.status, 200);
-  const after = (await call('GET', '/api/tracks', libA)).body.tracks[0];
+  const after = await find(id);
   assert.equal(after.name, 'Renamed');
   assert.equal(after.bpm, 90);
   assert.equal(after.createdAt, createdAt, 'createdAt is kept from the first save');
   assert.ok(after.updatedAt > createdAt);
 
-  assert.equal((await call('DELETE', `/api/tracks/${id}`, libA)).status, 200);
-  assert.deepEqual((await call('GET', '/api/tracks', libA)).body, { tracks: [] });
-});
-
-test('libraries are isolated from each other', async () => {
-  const id = randomUUID();
-  await call('PUT', `/api/tracks/${id}`, libA, track());
-  assert.deepEqual((await call('GET', '/api/tracks', libB)).body, { tracks: [] });
-  await call('DELETE', `/api/tracks/${id}`, libB); // must not touch libA's track
-  assert.equal((await call('GET', '/api/tracks', libA)).body.tracks.length, 1);
-  await call('DELETE', `/api/tracks/${id}`, libA);
+  assert.equal((await call('DELETE', `/api/tracks/${id}`)).status, 200);
+  assert.equal(await find(id), undefined);
 });
 
 test('stores the loop with the track', async () => {
   const id = randomUUID();
   const loop = { enabled: true, start: 4, end: 12 };
-  assert.equal((await call('PUT', `/api/tracks/${id}`, libA, track({ loop }))).status, 200);
-  const saved = (await call('GET', '/api/tracks', libA)).body.tracks.find((t: { id: string }) => t.id === id);
-  assert.deepEqual(saved.loop, loop);
+  assert.equal((await call('PUT', `/api/tracks/${id}`, track({ loop }))).status, 200);
+  assert.deepEqual((await find(id)).loop, loop);
   for (const bad of [{ enabled: 'yes', start: 0, end: 4 }, { enabled: true, start: 4, end: 4 }, { enabled: true, start: -1, end: 4 }]) {
-    assert.equal((await call('PUT', `/api/tracks/${id}`, libA, track({ loop: bad }))).status, 400);
+    assert.equal((await call('PUT', `/api/tracks/${id}`, track({ loop: bad }))).status, 400);
   }
-  await call('DELETE', `/api/tracks/${id}`, libA);
+  await call('DELETE', `/api/tracks/${id}`);
 });
 
 test('rejects malformed tracks', async () => {
@@ -124,7 +111,7 @@ test('rejects malformed tracks', async () => {
     track({ notes: [{ pitch: 60, start: 0, duration: 0, velocity: 100 }] }),
     track({ notes: Array.from({ length: 10_001 }, () => ({ pitch: 60, start: 0, duration: 1, velocity: 100 })) }),
   ];
-  for (const b of bad) assert.equal((await call('PUT', `/api/tracks/${id}`, libA, b)).status, 400, JSON.stringify(b).slice(0, 80));
-  assert.equal((await call('PUT', '/api/tracks/bad id!', libA, track())).status, 400);
-  assert.equal((await call('GET', '/api/tracks', libA)).body.tracks.length, 0);
+  for (const b of bad) assert.equal((await call('PUT', `/api/tracks/${id}`, b)).status, 400, JSON.stringify(b).slice(0, 80));
+  assert.equal((await call('PUT', '/api/tracks/bad id!', track())).status, 400);
+  assert.equal(await find(id), undefined);
 });

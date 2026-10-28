@@ -4,15 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>piano</title>
+    <script>
+      try {
+        const t = localStorage.getItem('piano:theme');
+        if (t) document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.88em' font-size='88'%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Bungee+Hairline&family=Fleur+De+Leah&display=swap" rel="stylesheet" />
   </head>
   <body>
     <header class="bar">
       <div class="group">
-        <div class="island">
+        <div class="cluster cluster-file">
         <button id="btn-sidebar" class="icon" title="Show / hide tracks" aria-label="Toggle tracks sidebar">
           <svg viewBox="0 0 16 16"><path d="M2 3h12v10H2zm1.5 1.5v7H6v-7zm4 0v7h5v-7z" /></svg>
         </button>
@@ -21,15 +27,8 @@
           <span id="dirty" class="dirty" title="Unsaved changes"></span>
         </div>
         <button id="btn-save" class="text" title="Save (⌘S)">Save</button>
-        <button id="btn-open" class="icon" title="Open a MIDI file (⌘O) — or drop one on the window" aria-label="Open MIDI file">
-          <svg viewBox="0 0 16 16"><path d="M7 14h2V7.8l2.3 2.3 1.4-1.4L8 4 3.3 8.7l1.4 1.4L7 7.8zM3 1.5h10V3H3z" /></svg>
-        </button>
-        <button id="btn-download" class="icon" title="Download as MIDI" aria-label="Download MIDI">
-          <svg viewBox="0 0 16 16"><path d="M7 2h2v6.2l2.3-2.3 1.4 1.4L8 12 3.3 7.3l1.4-1.4L7 8.2zM3 13h10v1.5H3z" /></svg>
-        </button>
-        <input id="file-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
         </div>
-        <div class="island">
+        <div class="cluster">
         <button id="btn-start" class="icon" title="Return to start (Home)" aria-label="Return to start">
           <svg viewBox="0 0 16 16"><rect x="3" y="3" width="2" height="10" /><path d="M13 3v10L6 8z" /></svg>
         </button>
@@ -48,7 +47,7 @@
         </div>
       </div>
       <div class="group">
-        <div class="island">
+        <div class="cluster">
         <button id="btn-keys" class="toggle keys" title="Play notes with the computer keyboard (M)" aria-label="Computer keyboard">
           <svg viewBox="0 0 16 16"><path d="M1.5 4h13v8h-13zM3 5.5v1.5h1.5V5.5zm2.5 0v1.5H7V5.5zm2.5 0v1.5h1.5V5.5zm2.5 0v1.5H12V5.5zM3 8v1.5h1.5V8zm2.5 0v1.5H7V8zm2.5 0v1.5h1.5V8zm2.5 0v1.5H12V8zM4.5 10.5V11h7v-.5z" /></svg>
           <span id="keys-info"></span>
@@ -57,7 +56,7 @@
           <svg viewBox="0 0 16 16"><path d="M2.5 13.5l.9-3.3 7.4-7.4 2.4 2.4-7.4 7.4z" /></svg>
         </button>
         </div>
-        <div class="island">
+        <div class="cluster">
         <label class="grid-label" title="Grid size (1 / 2 to narrow / widen)">
           <span>Grid</span>
           <select id="grid"></select>
@@ -65,7 +64,7 @@
         <button id="btn-triplet" class="toggle text" title="Triplet grid (3)">3</button>
         <button id="btn-boneless" class="toggle text" title="Boneless (4): nothing snaps to the grid — notes go exactly where you put them">Boneless</button>
         </div>
-        <div class="island">
+        <div class="cluster">
         <button id="btn-legato" class="text" title="Legato (⇧⌘L): stretch each note to the start of the next. Uses the selection, or all notes.">Legato</button>
         <div class="pop-wrap">
           <button id="btn-humanize" class="text" title="Humanize: nudge notes slightly earlier or later at random">Humanize</button>
@@ -77,8 +76,11 @@
           </div>
         </div>
         </div>
-        <div class="island">
+        <div class="cluster">
         <span id="status" class="status"></span>
+        <button id="btn-theme" class="icon" title="Theme">
+          <svg viewBox="0 0 16 16"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zm0 1.5v10a5 5 0 0 1 0-10z" /></svg>
+        </button>
         <button id="btn-help" class="icon" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
         </div>
       </div>
@@ -92,9 +94,22 @@
             <button id="btn-new" class="text" title="Start a new empty roll">+ New</button>
           </div>
           <ul id="track-list" class="track-list"></ul>
-          <p id="track-empty" class="side-empty">No saved tracks yet.<br />Press ⌘S to save this roll.</p>
+          <p id="track-empty" class="side-empty">No saved tracks yet.<br />Press ⌘S to save this roll — saved tracks are public.</p>
         </div>
-        <div id="library" class="library island-panel"></div>
+        <div class="library island-panel">
+          <span class="library-title">Midi files</span>
+          <div class="library-buttons">
+            <button id="btn-open" class="text" title="Open a MIDI file (⌘O) — or drop one on the window">
+              <svg viewBox="0 0 16 16"><path d="M7 14h2V7.8l2.3 2.3 1.4-1.4L8 4 3.3 8.7l1.4 1.4L7 7.8zM3 1.5h10V3H3z" /></svg>
+              Open
+            </button>
+            <button id="btn-download" class="text" title="Download this roll as a MIDI file">
+              <svg viewBox="0 0 16 16"><path d="M7 2h2v6.2l2.3-2.3 1.4 1.4L8 12 3.3 7.3l1.4-1.4L7 8.2zM3 13h10v1.5H3z" /></svg>
+              Download
+            </button>
+          </div>
+          <input id="file-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
+        </div>
       </aside>
       <main class="roll"><canvas id="roll-canvas"></canvas></main>
     </div>

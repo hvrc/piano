@@ -1,18 +1,18 @@
-// Track storage, partitioned by library (the SHA-256 of a client's library key).
+// Track storage: one public list of tracks.
 // - FileStore: a JSON file, for local development.
-// - FirestoreStore: production, Firestore Native database `piano`. Notes are stored as one flat
-//   number array [pitch, start, duration, velocity, ...] so large tracks stay compact.
+// - FirestoreStore: production, Firestore Native database `piano`, collection `tracks`. Notes are
+//   stored as one flat number array [pitch, start, duration, velocity, ...] so large tracks stay compact.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { NoteData } from '../src/model/note.ts';
 import type { Track } from './validate.ts';
 
 export interface TrackStore {
-  list(library: string): Promise<Track[]>;
-  get(library: string, id: string): Promise<Track | null>;
-  count(library: string): Promise<number>;
-  put(library: string, track: Track): Promise<void>;
-  remove(library: string, id: string): Promise<void>;
+  list(): Promise<Track[]>;
+  get(id: string): Promise<Track | null>;
+  count(): Promise<number>;
+  put(track: Track): Promise<void>;
+  remove(id: string): Promise<void>;
 }
 
 interface StoredTrack extends Omit<Track, 'notes'> {
@@ -44,24 +44,26 @@ const newestFirst = (a: Track, b: Track) => b.updatedAt - a.updatedAt;
 
 // ------------------------------------------------------------------ file
 
+type FileData = Record<string, StoredTrack>;
+
 export class FileStore implements TrackStore {
   private path: string;
-  private data: Record<string, Record<string, StoredTrack>> | null = null;
+  private data: FileData | null = null;
   private writing: Promise<void> = Promise.resolve();
 
   constructor(path: string) {
     this.path = path;
   }
 
-  private async load() {
+  private async load(): Promise<FileData> {
     if (!this.data) {
       try {
-        this.data = JSON.parse(await readFile(this.path, 'utf8'));
+        this.data = JSON.parse(await readFile(this.path, 'utf8')) as FileData;
       } catch {
         this.data = {};
       }
     }
-    return this.data!;
+    return this.data;
   }
 
   private persist(): Promise<void> {
@@ -75,29 +77,26 @@ export class FileStore implements TrackStore {
     return this.writing;
   }
 
-  async list(library: string) {
-    const lib = (await this.load())[library] ?? {};
-    return Object.values(lib).map(unpack).sort(newestFirst);
+  async list() {
+    return Object.values(await this.load()).map(unpack).sort(newestFirst);
   }
 
-  async get(library: string, id: string) {
-    const t = (await this.load())[library]?.[id];
+  async get(id: string) {
+    const t = (await this.load())[id];
     return t ? unpack(t) : null;
   }
 
-  async count(library: string) {
-    return Object.keys((await this.load())[library] ?? {}).length;
+  async count() {
+    return Object.keys(await this.load()).length;
   }
 
-  async put(library: string, track: Track) {
-    const data = await this.load();
-    (data[library] ??= {})[track.id] = pack(track);
+  async put(track: Track) {
+    (await this.load())[track.id] = pack(track);
     await this.persist();
   }
 
-  async remove(library: string, id: string) {
-    const data = await this.load();
-    if (data[library]) delete data[library][id];
+  async remove(id: string) {
+    delete (await this.load())[id];
     await this.persist();
   }
 }
@@ -107,26 +106,25 @@ export class FileStore implements TrackStore {
 export async function createFirestoreStore(databaseId: string): Promise<TrackStore> {
   const { Firestore } = await import('@google-cloud/firestore');
   const db = new Firestore({ databaseId, ignoreUndefinedProperties: true });
-  const tracks = (library: string) => db.collection('libraries').doc(library).collection('tracks');
+  const tracks = db.collection('tracks');
 
   return {
-    async list(library) {
-      const snap = await tracks(library).get();
+    async list() {
+      const snap = await tracks.get();
       return snap.docs.map((d) => unpack(d.data() as StoredTrack)).sort(newestFirst);
     },
-    async get(library, id) {
-      const doc = await tracks(library).doc(id).get();
+    async get(id) {
+      const doc = await tracks.doc(id).get();
       return doc.exists ? unpack(doc.data() as StoredTrack) : null;
     },
-    async count(library) {
-      const agg = await tracks(library).count().get();
-      return agg.data().count;
+    async count() {
+      return (await tracks.count().get()).data().count;
     },
-    async put(library, track) {
-      await tracks(library).doc(track.id).set(pack(track));
+    async put(track) {
+      await tracks.doc(track.id).set(pack(track));
     },
-    async remove(library, id) {
-      await tracks(library).doc(id).delete();
+    async remove(id) {
+      await tracks.doc(id).delete();
     },
   };
 }

@@ -2,7 +2,6 @@
 import type { Session } from '../library/session';
 import type { TrackRecord } from '../library/trackStore';
 import { BEATS_PER_BAR, EPS } from '../timeline/grid';
-import { libraryLink } from '../library/trackStore';
 import { notesEnd } from '../model/note';
 import { $ } from './dom';
 
@@ -16,31 +15,12 @@ export function mountSidebar(session: Session): void {
   const empty = $('track-empty');
   $('btn-new').addEventListener('click', () => void session.newTrack());
 
-  const library = $('library');
-  const note = document.createElement('span');
-  note.textContent = 'saved online · private to this browser';
-  library.replaceChildren(note);
-  const copy = document.createElement('button');
-  copy.className = 'text';
-  copy.textContent = 'Copy library link';
-  copy.title = 'Open this link on another device to see the same tracks. Anyone with it can edit them.';
-  copy.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(libraryLink());
-      copy.textContent = 'Link copied';
-    } catch {
-      window.prompt('Copy this link:', libraryLink());
-    }
-    setTimeout(() => (copy.textContent = 'Copy library link'), 2000);
-  });
-  library.append(copy);
-
   const render = () => {
     list.replaceChildren(...session.tracks.map((t) => item(session, t)));
     empty.hidden = session.tracks.length > 0 && !session.loadError;
     if (!session.ready) empty.textContent = 'Loading tracks…';
     else if (session.loadError) empty.textContent = session.loadError;
-    else empty.innerHTML = 'No saved tracks yet.<br />Press ⌘S to save this roll.';
+    else empty.innerHTML = 'No saved tracks yet.<br />Press ⌘S to save this roll — saved tracks are public.';
   };
   session.subscribe(render);
   render();

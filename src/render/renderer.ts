@@ -37,6 +37,11 @@ export class Renderer {
     this.labelWidths.clear();
   }
 
+  /** After the canvas palette changes: rebuild the paper grain in the new ink. */
+  retheme(): void {
+    this.grain = this.g.createPattern(paperGrain(), 'repeat');
+  }
+
   resize(): void {
     const parent = this.canvas.parentElement!;
     const w = parent.clientWidth;
@@ -249,7 +254,7 @@ export class Renderer {
     const { g, vp, store, overlay } = this;
     const rh = vp.rowHeight;
     const [lo, hi] = this.visiblePitches();
-    const font = `500 ${Math.min(10, rh - 5)}px ${FONT}`;
+    const font = `${Math.min(11, rh - 4)}px ${FONT}`;
     this.clipped(KEYS_W, RULER_H, vp.width, vp.height, () => {
       g.font = font;
       g.textBaseline = 'middle';
@@ -316,7 +321,7 @@ export class Renderer {
 
       if (store.notes.length === 0 && !overlay.ghost) {
         g.fillStyle = C.hint;
-        g.font = `italic 19px ${SERIF}`;
+        g.font = `24px ${SERIF}`;
         g.textAlign = 'center';
         g.textBaseline = 'middle';
         const hint = store.drawMode
@@ -353,7 +358,7 @@ export class Renderer {
       if (ppb >= 8) this.forBeats((x) => this.vline(x, base - 6, 6, C.rulerTick));
 
       // Bars + labels
-      g.font = `500 10px ${FONT}`;
+      g.font = `11px ${FONT}`;
       g.textBaseline = 'middle';
       const labelEvery = this.barSkip(34);
       this.forBars(this.barSkip(8), (x, bar) => {
@@ -423,7 +428,7 @@ export class Renderer {
     g.fillRect(0, top, KEYS_W, VEL_H);
     // Dynamics instead of numbers: a little musical twist on Live's 1–127 scale.
     g.fillStyle = C.velLabel;
-    g.font = `italic 15px ${SERIF}`;
+    g.font = `19px ${SERIF}`;
     g.textBaseline = 'middle';
     g.textAlign = 'right';
     g.fillText('ff', KEYS_W - 8, layout.velocityToY(118));
@@ -473,7 +478,7 @@ export class Renderer {
         g.stroke();
         if (hot) {
           g.fillStyle = C.velValue;
-          g.font = `500 10px ${FONT}`;
+          g.font = `11px ${FONT}`;
           g.fillText(String(n.velocity), x + 7, Math.max(top + 8, y));
         }
       }
@@ -496,7 +501,7 @@ export class Renderer {
       const kb = this.store.keyboard;
       const kw = KEYS_W - 1;
       const [lo, hi] = this.visiblePitches();
-      g.font = `500 ${Math.max(9, Math.min(10, rh - 4))}px ${FONT}`;
+      g.font = `${Math.max(9, Math.min(11, rh - 4))}px ${FONT}`;
       g.textBaseline = 'middle';
       g.textAlign = 'right';
 
@@ -519,7 +524,7 @@ export class Renderer {
           g.fillRect(0, y, 3, rh);
         }
         if ((p % 12 === 0 && rh >= 9) || hover) {
-          g.fillStyle = black || lit ? C.keyNameOnDark : hover ? C.labelHover : C.label;
+          g.fillStyle = black || lit ? C.keyNameOnDark : C.keyNameOnLight;
           g.fillText(pitchName(p), kw - 5, y + rh / 2);
         }
       }

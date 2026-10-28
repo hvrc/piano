@@ -1,46 +1,13 @@
-// Saved tracks live on the server (Firestore in production), grouped into a "library".
-// Each browser holds a random library key; the server only ever stores its hash.
-// Opening a library link (/#library=KEY) on another device shares the same library.
-import { LIBRARY_KEY, type TrackRecord } from '../model/track';
-import { storageGet, storageSet } from '../util/storage';
+// Saved tracks live on the server (Firestore in production) in one public list:
+// everyone who visits sees, and can edit, the same tracks.
+import type { TrackRecord } from '../model/track';
 
 export type { TrackRecord };
-
-const KEY_STORAGE = 'piano:library';
-
-let memoryKey: string | null = null;
-
-function newKey(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(18));
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-export function libraryKey(): string {
-  const stored = storageGet(KEY_STORAGE);
-  if (stored && LIBRARY_KEY.test(stored)) return stored;
-  // No storage (private mode) falls back to a key that lasts for this page.
-  memoryKey ??= newKey();
-  storageSet(KEY_STORAGE, memoryKey);
-  return memoryKey;
-}
-
-export function setLibraryKey(key: string): void {
-  memoryKey = key;
-  storageSet(KEY_STORAGE, key);
-}
-
-export function isLibraryKey(value: string): boolean {
-  return LIBRARY_KEY.test(value);
-}
-
-export function libraryLink(): string {
-  return `${location.origin}/#library=${libraryKey()}`;
-}
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', 'X-Library-Key': libraryKey() },
+    headers: { 'Content-Type': 'application/json' },
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? `The server answered ${res.status}.`);

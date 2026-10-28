@@ -19,6 +19,7 @@ import { Viewport } from './timeline/viewport';
 import { $ } from './ui/dom';
 import { mountFileBar } from './ui/fileBar';
 import { mountSidebar } from './ui/sidebar';
+import { mountThemeToggle } from './ui/themeToggle';
 import { mountTools } from './ui/tools';
 import { mountTransportBar } from './ui/transportBar';
 import { storageGet, storageSet } from './util/storage';
@@ -91,6 +92,10 @@ const bar = mountTransportBar(store, transport, { onHelp: () => toggleHelp(), on
 const fileBar = mountFileBar(session, { onToggleSidebar: toggleSidebar });
 mountSidebar(session);
 const closePopovers = mountTools(store);
+mountThemeToggle(() => {
+  renderer.retheme();
+  invalidate();
+});
 installShortcuts({
   store,
   transport,

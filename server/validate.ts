@@ -6,7 +6,7 @@ import { MAX_BEAT, MAX_BPM, MAX_NOTES, MIN_BPM, type LoopSettings, type TrackRec
 import { isValidPitch } from '../src/music/pitch.ts';
 
 export type Track = TrackRecord;
-export { LIBRARY_KEY, TRACK_ID } from '../src/model/track.ts';
+export { TRACK_ID } from '../src/model/track.ts';
 
 export class ValidationError extends Error {}
 

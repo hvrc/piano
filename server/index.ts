@@ -3,22 +3,21 @@
 //   PUT    /api/tracks/:id    create or replace a track
 //   DELETE /api/tracks/:id    delete a track
 //   GET    /_healthz          health check (Cloud Run reserves /healthz)
-// The caller's library is chosen by the X-Library-Key header; only its SHA-256 is stored.
+// Saved tracks are public: everyone who visits sees (and can edit) the same list.
 // In development (`pnpm dev`) the same server hosts Vite in middleware mode.
-import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { createFirestoreStore, FileStore, type TrackStore } from './store.ts';
-import { LIBRARY_KEY, parseTrack, TRACK_ID, ValidationError } from './validate.ts';
+import { parseTrack, TRACK_ID, ValidationError } from './validate.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const PORT = Number(process.env.PORT ?? 5190);
 const ROOT = resolve(import.meta.dirname, '..');
 const DIST = join(ROOT, 'dist');
 const MAX_BODY = 1_500_000;
-const MAX_TRACKS_PER_LIBRARY = Number(process.env.MAX_TRACKS_PER_LIBRARY ?? 1000);
+const MAX_TRACKS = Number(process.env.MAX_TRACKS ?? 5000);
 const WRITES_PER_10_MIN = Number(process.env.WRITES_PER_10_MIN ?? 300);
 
 const store: TrackStore =
@@ -57,11 +56,6 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   }
 }
 
-function libraryOf(req: IncomingMessage): string {
-  const key = req.headers['x-library-key'];
-  if (typeof key !== 'string' || !LIBRARY_KEY.test(key)) throw new HttpError(401, 'Missing or invalid library key.');
-  return createHash('sha256').update(key).digest('hex');
-}
 
 // Per-IP write limiter (per instance; enough to stop a runaway client).
 const writes = new Map<string, number[]>();
@@ -80,9 +74,8 @@ function limitWrites(req: IncomingMessage) {
 // ------------------------------------------------------------------ API
 
 async function api(req: IncomingMessage, res: ServerResponse, path: string) {
-  const library = libraryOf(req);
   if (path === '/api/tracks' && req.method === 'GET') {
-    return send(res, 200, { tracks: await store.list(library) });
+    return send(res, 200, { tracks: await store.list() });
   }
   const m = path.match(/^\/api\/tracks\/([^/]+)$/);
   if (!m) throw new HttpError(404, 'Not found.');
@@ -92,17 +85,17 @@ async function api(req: IncomingMessage, res: ServerResponse, path: string) {
   if (req.method === 'PUT') {
     limitWrites(req);
     const track = parseTrack(id, await readJson(req));
-    const existing = await store.get(library, id);
-    if (!existing && (await store.count(library)) >= MAX_TRACKS_PER_LIBRARY) {
-      throw new HttpError(409, `A library can hold at most ${MAX_TRACKS_PER_LIBRARY} tracks.`);
+    const existing = await store.get(id);
+    if (!existing && (await store.count()) >= MAX_TRACKS) {
+      throw new HttpError(409, `The track list is full (${MAX_TRACKS} tracks).`);
     }
     if (existing) track.createdAt = existing.createdAt;
-    await store.put(library, track);
+    await store.put(track);
     return send(res, 200, { track });
   }
   if (req.method === 'DELETE') {
     limitWrites(req);
-    await store.remove(library, id);
+    await store.remove(id);
     return send(res, 200, { ok: true });
   }
   throw new HttpError(405, 'Method not allowed.');

@@ -6,7 +6,7 @@ import type { Transport } from '../playback/transport';
 import { DEFAULT_LOOP, type LoopSettings, type Store } from '../state/store';
 import { choose, alertError } from '../ui/dialog';
 import { storageGet, storageSet } from '../util/storage';
-import { deleteTrack, isLibraryKey, libraryKey, listTracks, putTrack, setLibraryKey, type TrackRecord } from './trackStore';
+import { deleteTrack, listTracks, putTrack, type TrackRecord } from './trackStore';
 
 const LAST_TRACK_KEY = 'piano:lastTrack';
 const DEFAULT_BPM = 120;
@@ -39,13 +39,8 @@ export class Session {
     store.subscribe((k) => {
       if ((k === 'notes' || k === 'bpm' || k === 'loop') && this.dirty !== this.lastDirty) this.emit();
     });
-    // A library link opened in a tab that's already on the app only changes the hash.
-    window.addEventListener('hashchange', async () => {
-      if (!(await this.adoptLibraryFromLink())) return;
-      // The open roll belonged to the previous library; keep it on screen as unsaved work.
-      this.detach();
-      this.emit();
-    });
+    // The list is shared, so pick up other people's saves when coming back to the tab.
+    window.addEventListener('focus', () => void this.refresh().then(() => this.emit()));
   }
 
   subscribe(fn: () => void): void {
@@ -85,7 +80,6 @@ export class Session {
 
   async init(): Promise<void> {
     await this.refresh();
-    await this.adoptLibraryFromLink();
     const last = storageGet(LAST_TRACK_KEY);
     const track = this.tracks.find((t) => t.id === last);
     if (track) this.load(track);
@@ -93,7 +87,7 @@ export class Session {
     this.emit();
   }
 
-  private async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
     try {
       this.tracks = await listTracks();
       this.loadError = null;
@@ -101,30 +95,6 @@ export class Session {
       console.warn('[piano] could not load saved tracks', err);
       this.loadError = 'Couldn’t load saved tracks. Is the server running?';
     }
-  }
-
-  /** /#library=KEY switches this device to a shared library (asking first if it would hide tracks). */
-  private async adoptLibraryFromLink(): Promise<boolean> {
-    const key = new URLSearchParams(location.hash.slice(1)).get('library');
-    if (key === null) return false;
-    history.replaceState(null, '', location.pathname + location.search);
-    if (!isLibraryKey(key) || key === libraryKey()) return false;
-    if (this.tracks.length > 0) {
-      const choice = await choose(
-        'Open the library from this link?',
-        `This device will switch to the linked library. Its current library (${this.tracks.length} track${
-          this.tracks.length === 1 ? '' : 's'
-        }) stays saved, but you’ll need its own link to get back to it — copy that first if you want it.`,
-        [
-          { label: 'Cancel', value: 'cancel' },
-          { label: 'Switch library', value: 'switch', primary: true },
-        ],
-      );
-      if (choice !== 'switch') return false;
-    }
-    setLibraryKey(key);
-    await this.refresh();
-    return true;
   }
 
   setName(name: string): void {
