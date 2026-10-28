@@ -183,8 +183,8 @@ export function setCanvasTheme(name: ThemeName): void {
 setCanvasTheme('paper');
 
 export const FONT = '"Sixtyfour", ui-monospace, "SF Mono", Menlo, monospace';
-/** The handwriting face (League Script) for titles and labels. */
-export const SERIF = '"League Script", "Iowan Old Style", Georgia, cursive';
+/** The handwriting face (Ballet) for titles and labels. */
+export const SERIF = '"Ballet", "Iowan Old Style", Georgia, cursive';
 
 /** Notes are ink slots punched in the roll: softer notes are fainter ink. */
 export function noteFill(velocity: number, hovered: boolean): string {
