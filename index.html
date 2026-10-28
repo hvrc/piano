@@ -13,7 +13,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.88em' font-size='88'%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,audio_file,clear_all,close,coffee,delete,description,download,edit,fiber_manual_record,fingerprint,keyboard_alt,mic,palette,pause,pet_supplies,piano,play_arrow,repeat,save,settings,side_navigation,skip_previous,stop,timer,upload&display=block" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,audio_file,chevron_right,clear_all,close,coffee,create_new_folder,delete,description,download,drive_file_move,edit,fiber_manual_record,fingerprint,folder,folder_open,keyboard_alt,mic,palette,pause,pet_supplies,piano,play_arrow,repeat,save,settings,side_navigation,skip_previous,stop,timer,upload&display=block" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Bungee+Hairline&family=Ballet:opsz@16..72&display=swap" rel="stylesheet" />
   </head>
   <body>
@@ -105,7 +105,10 @@
         <div class="side-main island-panel">
           <div class="side-head">
             <span class="brand">piano <em>roll book</em></span>
-            <button id="btn-new" class="icon" title="Start a new empty roll" aria-label="New roll"><span class="msr" aria-hidden="true">add</span></button>
+            <div class="side-head-buttons">
+              <button id="btn-new-folder" class="icon" title="New folder — then drag tracks into it" aria-label="New folder"><span class="msr" aria-hidden="true">create_new_folder</span></button>
+              <button id="btn-new" class="icon" title="Start a new empty roll" aria-label="New roll"><span class="msr" aria-hidden="true">add</span></button>
+            </div>
           </div>
           <ul id="track-list" class="track-list"></ul>
           <p id="track-empty" class="side-empty">No saved tracks yet.<br />Press ⌘S to save this roll — saved tracks are public.</p>

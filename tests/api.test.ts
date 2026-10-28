@@ -100,6 +100,16 @@ test('stores the loop with the track', async () => {
   await call('DELETE', `/api/tracks/${id}`);
 });
 
+test('files a track in a folder, and unfiles it', async () => {
+  const id = randomUUID();
+  assert.equal((await call('PUT', `/api/tracks/${id}`, track({ folder: '  Sketches  ' }))).status, 200);
+  assert.equal((await find(id)).folder, 'Sketches');
+  assert.equal((await call('PUT', `/api/tracks/${id}`, track())).status, 200);
+  assert.equal((await find(id)).folder, undefined);
+  assert.equal((await call('PUT', `/api/tracks/${id}`, track({ folder: 7 }))).status, 400);
+  await call('DELETE', `/api/tracks/${id}`);
+});
+
 test('keeps note colours, and rejects malformed ones', async () => {
   const id = randomUUID();
   const notes = [

@@ -117,6 +117,7 @@ export class Session {
       bpm: this.store.bpm,
       notes: this.store.notes.map(toData),
       loop: { ...this.store.loop },
+      ...(existing?.folder && !asCopy ? { folder: existing.folder } : {}),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
@@ -130,6 +131,30 @@ export class Session {
     this.tracks = [record, ...this.tracks.filter((t) => t.id !== id)];
     storageSet(LAST_TRACK_KEY, id);
     this.emit();
+  }
+
+  /** File a saved track into `folder` (or unfile it with ''). Only the folder changes. */
+  async moveToFolder(id: string, folder: string): Promise<boolean> {
+    const track = this.tracks.find((t) => t.id === id);
+    if (!track || (track.folder ?? '') === folder) return true;
+    const { folder: _old, ...rest } = track;
+    const record: TrackRecord = folder ? { ...rest, folder } : rest;
+    try {
+      Object.assign(record, await putTrack(record));
+    } catch (err) {
+      await alertError('Couldn’t move the track', errorText(err));
+      return false;
+    }
+    this.tracks = this.tracks.map((t) => (t.id === id ? record : t));
+    this.emit();
+    return true;
+  }
+
+  /** Rename a folder: refile every track in it. */
+  async renameFolder(from: string, to: string): Promise<void> {
+    for (const t of this.tracks.filter((t) => t.folder === from)) {
+      if (!(await this.moveToFolder(t.id, to))) return;
+    }
   }
 
   // ------------------------------------------------------------- opening

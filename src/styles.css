@@ -392,13 +392,51 @@ body.sidebar-hidden .sidebar { display: none; }
 .track-actions:has(.armed) { display: inline-flex; }
 .track-action { min-width: 28px; width: auto; height: 28px; padding: 0 8px; border-radius: 8px; background: var(--fill); }
 .track-action .msr { font-size: 16px; }
+/* Folders: a header row (drop target) with its tracks indented underneath. */
+.side-head-buttons { display: flex; gap: 6px; }
+.folder { border-radius: 10px; }
+.folder.drop { background: var(--row-hover); box-shadow: inset 0 0 0 1px var(--ink-soft); }
+.track-list.drop { box-shadow: inset 0 0 0 1px var(--hairline); border-radius: 10px; }
+.folder-head { position: relative; display: flex; align-items: center; gap: 6px; min-height: 40px; padding-left: 8px; border-radius: 10px; }
+.folder-head:hover { background: var(--row-hover); }
+.folder-head > .msr { font-size: 18px; color: var(--ink-soft); }
+.folder-head:hover .track-actions { display: inline-flex; }
+.folder-main { flex: 1; min-width: 0; height: 40px; justify-content: flex-start; gap: 6px; padding: 0 8px 0 0; background: none; }
+.folder-main:hover { background: none; }
+.folder-main .msr { font-size: 18px; color: var(--ink-soft); transition: transform 0.15s; }
+.folder-main .msr:first-child { font-size: 16px; }
+.folder.open .folder-main .msr:first-child { transform: rotate(90deg); }
+.folder-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13px var(--ui); letter-spacing: 0.04em; }
+.folder-count { font: 400 11px var(--mono); color: var(--ink-soft); }
+.folder-input { flex: 1; min-width: 0; height: 30px; margin-right: 8px; }
+.folder-tracks { list-style: none; margin: 0 0 4px; padding: 0 0 0 14px; }
+.folder-empty { padding: 4px 0 8px 30px; font: 400 11px var(--mono); color: var(--ink-soft); }
+.track.dragging { opacity: 0.4; }
+.track.menu-open .track-actions { display: inline-flex; }
+.move-menu {
+  position: absolute;
+  top: calc(100% - 4px);
+  right: 8px;
+  z-index: 12;
+  display: grid;
+  gap: 4px;
+  min-width: 160px;
+  max-width: 220px;
+  padding: 8px;
+  background: var(--paper-card) var(--grain);
+  border: 0.5px solid var(--hairline);
+  border-radius: var(--radius-card);
+}
+.move-menu button { justify-content: flex-start; background: none; }
+.move-menu button:hover { background: var(--fill-hover); }
+.move-menu button.on { background: var(--fill); }
+.move-menu p { margin: 0; padding: 4px; font: 400 11px/1.5 var(--mono); color: var(--ink-soft); }
 .track-action.armed { background: var(--red); color: var(--on-accent); }
 .side-empty { margin: 16px 14px; font: 20px/1.35 var(--serif); color: var(--ink-soft); }
 .side-empty[hidden] { display: none; }
 .library {
   flex: none;
-  height: var(--vel-h); /* level with the velocity island */
-  padding: 0 12px 0 14px;
+  padding: 6px 6px 6px 18px; /* just the buttons' height; Ballet's title is free to spill over */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -457,7 +495,9 @@ button.danger:hover { background: var(--danger-fill); }
   width: 264px;
   padding: 14px 16px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  white-space: normal; /* the top bar is nowrap; popover prose must wrap inside the card */
 }
 .pop[hidden] { display: none; }
 .pop label { display: grid; grid-template-columns: 60px 1fr 54px; align-items: center; gap: 8px; font: 19px var(--serif); }
@@ -515,7 +555,9 @@ button.danger:hover { background: var(--danger-fill); }
 .swatch.on { box-shadow: 0 0 0 2px var(--paper-card), 0 0 0 4px var(--ink); }
 .swatch.none { background: var(--fill); font: 400 12px/1 var(--ui); }
 .swatch.none:hover { background: var(--fill-hover); }
-.color-pop { width: 232px; }
+.color-pop { width: 222px; }
+.color-pop .swatches { display: grid; grid-template-columns: repeat(5, 30px); gap: 8px; }
+.color-pop .swatch { width: 30px; height: 30px; }
 .color-pop p { margin: 0; }
 
 #btn-record.on { background: var(--red); color: var(--on-accent); }
@@ -524,7 +566,9 @@ button.danger:hover { background: var(--danger-fill); }
 #btn-metronome.on { background: var(--highlight); color: var(--on-highlight); }
 #btn-falling.on { background: var(--teal); color: var(--on-accent); }
 
-.transcribe-card { width: min(460px, calc(100vw - 32px)); }
+.transcribe-card { width: min(600px, calc(100vw - 32px)); padding: 22px 26px 22px; }
+.dialog-buttons { flex-wrap: wrap; }
+.dialog-buttons button { white-space: nowrap; flex: none; }
 .transcribe-status { min-height: 18px; margin: -6px 0 16px; font: 400 12px/1.5 var(--mono); color: var(--red); }
 .dialog-buttons button .msr { font-size: 17px; }
 .swatches.disabled { opacity: 0.4; pointer-events: none; }

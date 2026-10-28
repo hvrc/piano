@@ -42,6 +42,7 @@ function unpack(s: StoredTrack): Track {
     bpm: s.bpm,
     notes,
     ...(s.loop ? { loop: s.loop } : {}),
+    ...(s.folder ? { folder: s.folder } : {}),
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
   };

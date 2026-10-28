@@ -15,6 +15,8 @@ export interface TrackRecord {
   bpm: number;
   notes: NoteData[];
   loop?: LoopSettings;
+  /** The sidebar folder it's filed in; absent means unfiled. */
+  folder?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -24,5 +26,6 @@ export const MAX_BPM = 400;
 // Stored compactly (4 numbers per note = 32 B, +8 B with a colour): 20k fully coloured notes ≈ 800 KB,
 // still under Firestore's 1 MiB document limit.
 export const MAX_NOTES = 20_000;
+export const MAX_FOLDER_NAME = 60;
 export const MAX_BEAT = 100_000;
 export const TRACK_ID = /^[A-Za-z0-9-]{8,64}$/;

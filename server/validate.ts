@@ -2,7 +2,7 @@
 // Limits and types are shared with the client (src/model), so both sides agree.
 import { MAX_VELOCITY, MIN_VELOCITY } from '../src/model/note.ts';
 import type { NoteData } from '../src/model/note.ts';
-import { MAX_BEAT, MAX_BPM, MAX_NOTES, MIN_BPM, type LoopSettings, type TrackRecord } from '../src/model/track.ts';
+import { MAX_BEAT, MAX_BPM, MAX_FOLDER_NAME, MAX_NOTES, MIN_BPM, type LoopSettings, type TrackRecord } from '../src/model/track.ts';
 import { isValidPitch } from '../src/music/pitch.ts';
 import { NOTE_COLOR } from '../src/model/colors.ts';
 
@@ -50,7 +50,10 @@ export function parseTrack(id: string, body: unknown): Track {
     loop = { enabled: l.enabled, start: l.start, end: l.end };
   }
 
+  if (b.folder !== undefined && typeof b.folder !== 'string') throw new ValidationError('folder must be a string.');
+  const folder = typeof b.folder === 'string' ? b.folder.trim().slice(0, MAX_FOLDER_NAME) : '';
+
   const now = Date.now();
   const createdAt = isNum(b.createdAt) && b.createdAt <= now + 60_000 ? b.createdAt : now;
-  return { id, name, bpm: b.bpm, notes, ...(loop ? { loop } : {}), createdAt, updatedAt: now };
+  return { id, name, bpm: b.bpm, notes, ...(loop ? { loop } : {}), ...(folder ? { folder } : {}), createdAt, updatedAt: now };
 }
