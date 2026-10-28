@@ -13,7 +13,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.88em' font-size='88'%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=audio_file,close,coffee,delete,description,download,edit,fiber_manual_record,keyboard,mic,palette,pause,piano,play_arrow,repeat,settings,side_navigation,skip_previous,stop,timer,upload&display=block" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,audio_file,clear_all,close,coffee,delete,description,download,edit,fiber_manual_record,fingerprint,keyboard_alt,mic,palette,pause,pet_supplies,piano,play_arrow,repeat,save,settings,side_navigation,skip_previous,stop,timer,upload&display=block" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Bungee+Hairline&family=Ballet:opsz@16..72&display=swap" rel="stylesheet" />
   </head>
   <body>
@@ -28,7 +28,7 @@
           <span id="track-name-label" class="doc-label" aria-hidden="true"></span>
           <span id="dirty" class="dirty" title="Unsaved changes"></span>
         </div>
-        <button id="btn-save" class="text" title="Save (⌘S)">Save</button>
+        <button id="btn-save" class="icon" title="Save (⌘S)" aria-label="Save"><span class="msr" aria-hidden="true">save</span></button>
         </div>
         <div class="cluster">
         <button id="btn-start" class="icon" title="Return to start (Home)" aria-label="Return to start">
@@ -57,7 +57,7 @@
       <div class="group">
         <div class="cluster">
         <button id="btn-keys" class="toggle keys" title="Play notes with the computer keyboard (M)" aria-label="Computer keyboard">
-          <span class="msr" aria-hidden="true">keyboard</span>
+          <span class="msr" aria-hidden="true">keyboard_alt</span>
           <span id="keys-info"></span>
         </button>
         <button id="btn-draw" class="toggle" title="Draw mode (B)" aria-label="Draw mode">
@@ -70,7 +70,7 @@
           <select id="grid"></select>
         </label>
         <button id="btn-triplet" class="toggle text" title="Triplet grid (3)">3</button>
-        <button id="btn-boneless" class="toggle text" title="Boneless (4): nothing snaps to the grid — notes go exactly where you put them">Boneless</button>
+        <button id="btn-boneless" class="toggle icon" title="Boneless (4): nothing snaps to the grid — notes go exactly where you put them" aria-label="Boneless"><span class="msr" aria-hidden="true">pet_supplies</span></button>
         </div>
         <div class="cluster">
         <div class="pop-wrap">
@@ -80,9 +80,9 @@
             <div id="color-swatches" class="swatches"></div>
           </div>
         </div>
-        <button id="btn-legato" class="text" title="Legato (⇧⌘L): stretch each note to the start of the next. Uses the selection, or all notes.">Legato</button>
+        <button id="btn-legato" class="icon" title="Legato (⇧⌘L): stretch each note to the start of the next. Uses the selection, or all notes." aria-label="Legato"><span class="msr" aria-hidden="true">clear_all</span></button>
         <div class="pop-wrap">
-          <button id="btn-humanize" class="text" title="Humanize: nudge notes slightly earlier or later at random">Humanize</button>
+          <button id="btn-humanize" class="icon" title="Humanize: nudge notes slightly earlier or later at random" aria-label="Humanize"><span class="msr" aria-hidden="true">fingerprint</span></button>
           <div id="humanize-pop" class="pop" hidden>
             <label>Timing <input id="hum-timing" type="range" min="0" max="60" step="1" /> <output id="hum-timing-out"></output></label>
             <label>Velocity <input id="hum-velocity" type="range" min="0" max="40" step="1" /> <output id="hum-velocity-out"></output></label>
@@ -105,7 +105,7 @@
         <div class="side-main island-panel">
           <div class="side-head">
             <span class="brand">piano <em>roll book</em></span>
-            <button id="btn-new" class="text" title="Start a new empty roll">+ New</button>
+            <button id="btn-new" class="icon" title="Start a new empty roll" aria-label="New roll"><span class="msr" aria-hidden="true">add</span></button>
           </div>
           <ul id="track-list" class="track-list"></ul>
           <p id="track-empty" class="side-empty">No saved tracks yet.<br />Press ⌘S to save this roll — saved tracks are public.</p>
@@ -113,14 +113,8 @@
         <div class="library island-panel">
           <span class="library-title">Midi files</span>
           <div class="library-buttons">
-            <button id="btn-open" class="text" title="Open a MIDI file (⌘O) — or drop one on the window">
-              <span class="msr" aria-hidden="true">upload</span>
-              Open
-            </button>
-            <button id="btn-download" class="text" title="Download this roll as a MIDI file">
-              <span class="msr" aria-hidden="true">download</span>
-              Download
-            </button>
+            <button id="btn-open" class="icon" title="Open a MIDI file (⌘O) — or drop one on the window" aria-label="Open MIDI file"><span class="msr" aria-hidden="true">upload</span></button>
+            <button id="btn-download" class="icon" title="Download this roll as a MIDI file" aria-label="Download MIDI"><span class="msr" aria-hidden="true">download</span></button>
           </div>
           <input id="file-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
         </div>
