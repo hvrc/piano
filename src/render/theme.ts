@@ -27,12 +27,12 @@ function paperPalette() {
     bg: '#ebe4d2', // outside the pitch range
     rowWhite: PAPER,
     rowBlack: '#ece5d3',
-    rowLine: ink(0.1), // E|F boundary
-    octaveLine: ink(0.32), // B|C boundary
+    rowLine: ink(0.06), // E|F boundary
+    octaveLine: ink(0.18), // B|C boundary
     rowHover: 'rgba(243, 228, 140, 0.35)',
-    lineSub: ink(0.12),
-    lineBeat: ink(0.28),
-    lineBar: ink(0.6),
+    lineSub: ink(0.07),
+    lineBeat: ink(0.15),
+    lineBar: ink(0.32),
 
     noteInk: ink(1),
     noteSelected: TEAL,
@@ -51,7 +51,7 @@ function paperPalette() {
     scrub: PAPER,
     rulerText: ink(0.9),
     rulerTextDim: ink(0.45),
-    rulerTick: ink(0.5),
+    rulerTick: ink(0.3),
     divider: ink(0.16), // soft hairlines between bands (matches --hairline in CSS)
 
     labelColumn: '#efe8d7', // the velocity lane's left column
@@ -71,7 +71,7 @@ function paperPalette() {
     hint: ink(0.4),
 
     velLane: '#f0eadb',
-    velGuide: ink(0.16),
+    velGuide: ink(0.09),
     velLabel: ink(0.6),
     velValue: ink(1),
 
@@ -98,12 +98,12 @@ function espressoPalette(): Palette {
     bg: '#15120f',
     rowWhite: '#2a2520',
     rowBlack: '#221e1a',
-    rowLine: ink(0.06),
-    octaveLine: ink(0.18),
+    rowLine: ink(0.035),
+    octaveLine: ink(0.1),
     rowHover: 'rgba(198, 164, 131, 0.14)',
-    lineSub: ink(0.07),
-    lineBeat: ink(0.16),
-    lineBar: ink(0.34),
+    lineSub: ink(0.04),
+    lineBeat: ink(0.08),
+    lineBar: ink(0.16),
 
     noteInk: ink(1),
     noteSelected: STEEL,
@@ -122,7 +122,7 @@ function espressoPalette(): Palette {
     scrub: '#25211c',
     rulerText: ink(0.9),
     rulerTextDim: ink(0.45),
-    rulerTick: ink(0.4),
+    rulerTick: ink(0.24),
     divider: ink(0.12),
 
     labelColumn: '#211d19',
@@ -143,7 +143,7 @@ function espressoPalette(): Palette {
     hint: ink(0.35),
 
     velLane: '#211d19',
-    velGuide: ink(0.1),
+    velGuide: ink(0.06),
     velLabel: ink(0.55),
     velValue: ink(1),
 
