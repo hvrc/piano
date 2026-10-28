@@ -212,11 +212,22 @@ export class Renderer {
     for (let b = Math.floor(b0); b <= b1; b++) if (b % BEATS_PER_BAR !== 0) fn(this.vp.beatToX(b), b);
   }
 
-  /** Visit grid-step lines in view that aren't beat lines. */
-  private forSubBeats(step: number, fn: (x: number) => void): void {
+  /**
+   * Visit the grid lines in view (bar lines excluded; they're drawn separately). Lines follow the
+   * grid step exactly — 1 Bar shows no beat lines, triplets show triplet lines. When the step is
+   * too dense to draw at this zoom, fall back to beat lines, but only if beats lie on the grid.
+   */
+  private forGridLines(step: number, minPx: number, fn: (x: number, onBeat: boolean) => void): void {
     const [b0, b1] = this.visibleBeats();
-    for (let k = Math.floor(b0 / step); k * step <= b1; k++) {
-      if (!isMultiple(k * step, 1)) fn(this.vp.beatToX(k * step));
+    const ppb = this.vp.pxPerBeat;
+    let unit = step;
+    if (step * ppb < minPx) {
+      if (!isMultiple(1, step) || ppb < minPx) return; // beats aren't grid lines, or even beats are too dense
+      unit = 1;
+    }
+    for (let k = Math.floor(b0 / unit); k * unit <= b1; k++) {
+      const b = k * unit;
+      if (!isMultiple(b, BEATS_PER_BAR)) fn(this.vp.beatToX(b), isMultiple(b, 1));
     }
   }
 
@@ -265,8 +276,7 @@ export class Renderer {
       const top = Math.max(0, vp.pitchToY(MAX_PITCH));
       const h = Math.min(vp.height, vp.pitchToY(MIN_PITCH) + rh) - top;
       const step = gridStep(store.grid);
-      if (step < 1 && step * vp.pxPerBeat >= 6) this.forSubBeats(step, (x) => this.dotted(x, top, h, C.lineSub, 4));
-      if (vp.pxPerBeat >= 8) this.forBeats((x) => this.dotted(x, top, h, C.lineBeat));
+      this.forGridLines(step, 6, (x, onBeat) => this.dotted(x, top, h, onBeat ? C.lineBeat : C.lineSub, onBeat ? 2 : 4));
       this.forBars(this.barSkip(8), (x) => this.vline(x, top, h, C.lineBar));
 
       // Live greys out everything outside an active loop.
@@ -389,8 +399,7 @@ export class Renderer {
       const ppb = vp.pxPerBeat;
       const base = TICKS_H - 1;
       const step = gridStep(store.grid);
-      if (step < 1 && step * ppb >= 8) this.forSubBeats(step, (x) => this.vline(x, base - 3, 3, C.rulerTick));
-      if (ppb >= 8) this.forBeats((x) => this.vline(x, base - 6, 6, C.rulerTick));
+      this.forGridLines(step, 8, (x, onBeat) => this.vline(x, base - (onBeat ? 6 : 3), onBeat ? 6 : 3, C.rulerTick));
 
       // Bars + labels
       g.font = `11px ${FONT}`;

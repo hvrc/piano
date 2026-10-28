@@ -29,6 +29,7 @@ const DRAG_THRESHOLD = 3; // px before a click becomes a drag
 const DOUBLE_CLICK_MS = 350;
 const EDGE_PX = 7;
 const AUTOSCROLL_MAX = 28; // px per frame
+const AUDITION_GAP_MS = 70; // minimum time between replays of the same note while dragging
 
 const PENCIL_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><path d='M3 17l1.2-4.2L13.6 3.4l3 3-9.4 9.4z' fill='white' stroke='black' stroke-width='1.2' stroke-linejoin='round'/><path d='M3 17l1.2-4.2 3 3z' fill='black'/></svg>",
@@ -61,6 +62,7 @@ type Drag = DragBase &
         copyIds: Map<number, number>;
         selectOnlyOnClick: number | null;
         lastPitch: number;
+        lastBeat: number;
         scroll0: Point; // viewport scroll at drag start, so autoscroll moves the notes too
       }
     | { kind: 'resize'; edge: 'start' | 'end'; anchor: Note; base: Note[]; ids: Set<number>; scroll0: number }
@@ -88,6 +90,7 @@ export class Editor {
   private lastDown = { time: 0, x: 0, y: 0 };
   private preview: { pitch: number; voice: Voice } | null = null;
   private hoverZone: NoteZone | null = null;
+  private lastAudition = 0;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -214,8 +217,16 @@ export class Editor {
 
   // ------------------------------------------------------------ audition
 
-  private audition(pitch: number): void {
-    if (this.preview?.pitch === pitch) return;
+  /**
+   * Play a note as feedback while editing. `retrigger` replays it even if that pitch is already
+   * sounding (a newly drawn note, or a note moved to a new spot), throttled so fast drags don't
+   * machine-gun.
+   */
+  private audition(pitch: number, retrigger = false): void {
+    if (this.preview?.pitch === pitch && !retrigger) return;
+    const now = performance.now();
+    if (retrigger && this.preview?.pitch === pitch && now - this.lastAudition < AUDITION_GAP_MS) return;
+    this.lastAudition = now;
     this.cancelPreview();
     this.preview = { pitch, voice: playNow(this.instrument, pitch, DEFAULT_VELOCITY) };
     this.overlay.pressedKeys = new Set([pitch]);
@@ -323,6 +334,7 @@ export class Editor {
       copyIds: new Map(moving.map((n) => [n.id, store.newId()])),
       selectOnlyOnClick,
       lastPitch: h.note.pitch,
+      lastBeat: 0,
       scroll0: { x: this.vp.scrollX, y: this.vp.scrollY },
     });
     this.audition(h.note.pitch);
@@ -492,10 +504,12 @@ export class Editor {
     } else {
       this.store.setNotes(d.base.map((n) => (d.ids.has(n.id) ? shift(n) : n)), d.ids);
     }
+    // Hear the note wherever it lands: on a new pitch or a new spot in time.
     const pitch = d.anchor.pitch + dPitch;
-    if (pitch !== d.lastPitch) {
+    if (pitch !== d.lastPitch || Math.abs(dBeat - d.lastBeat) > EPS) {
       d.lastPitch = pitch;
-      this.audition(pitch);
+      d.lastBeat = dBeat;
+      this.audition(pitch, true);
     }
   }
 
@@ -567,7 +581,7 @@ export class Editor {
     if (this.occupied(pitch, start, len)) return null;
     const note = this.store.makeNote(pitch, start, len);
     this.store.appendNotes([note], [...selection, note.id]);
-    this.audition(pitch);
+    this.audition(pitch, true); // every new note sounds, even at the same pitch
     return note;
   }
 
