@@ -24,7 +24,6 @@ const GREEN = '#9cc46a';
 function paperPalette() {
   const ink = inkOf(PAPER_INK);
   return {
-    page: PAPER, // the page around the canvas panels
     bg: '#ebe4d2', // outside the pitch range
     rowWhite: PAPER,
     rowBlack: '#ece5d3',
@@ -96,7 +95,6 @@ function espressoPalette(): Palette {
   const HONEY = '#e3b667';
   const ROOM = '#191613';
   return {
-    page: ROOM,
     bg: '#15120f',
     rowWhite: '#2a2520',
     rowBlack: '#221e1a',
@@ -184,9 +182,9 @@ export function setCanvasTheme(name: ThemeName): void {
 }
 setCanvasTheme('paper');
 
-export const FONT = '"Bungee Hairline", ui-monospace, "SF Mono", Menlo, monospace';
-/** The handwriting face (Fleur De Leah) for titles and labels. */
-export const SERIF = '"Fleur De Leah", "Iowan Old Style", Georgia, cursive';
+export const FONT = '"Sixtyfour", ui-monospace, "SF Mono", Menlo, monospace';
+/** The handwriting face (League Script) for titles and labels. */
+export const SERIF = '"League Script", "Iowan Old Style", Georgia, cursive';
 
 /** Notes are ink slots punched in the roll: softer notes are fainter ink. */
 export function noteFill(velocity: number, hovered: boolean): string {
