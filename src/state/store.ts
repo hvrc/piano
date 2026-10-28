@@ -3,7 +3,16 @@
 import { DEFAULT_VELOCITY, type Note } from '../model/note';
 import type { GridSettings } from '../timeline/grid';
 
-export type ChangeKind = 'notes' | 'selection' | 'position' | 'playing' | 'bpm' | 'grid' | 'mode' | 'keyboard';
+export type ChangeKind = 'notes' | 'selection' | 'position' | 'playing' | 'bpm' | 'grid' | 'mode' | 'keyboard' | 'loop';
+
+/** Live's loop brace: when enabled, playback that reaches `end` jumps back to `start` (beats). */
+export interface LoopSettings {
+  enabled: boolean;
+  start: number;
+  end: number;
+}
+
+export const DEFAULT_LOOP: LoopSettings = { enabled: false, start: 0, end: 4 };
 
 /** Live's computer MIDI keyboard: A..' play a 1.5-octave range starting at `base`. */
 export interface KeyboardSettings {
@@ -28,6 +37,7 @@ export class Store {
   grid: GridSettings = { division: 0.25, triplet: false, snap: true };
   drawMode = false;
   keyboard: KeyboardSettings = { enabled: false, base: 60, velocity: 100 };
+  loop: LoopSettings = DEFAULT_LOOP;
 
   private nextId = 1;
   private undoStack: Snapshot[] = [];
@@ -73,7 +83,12 @@ export class Store {
   }
 
   /** Replace everything with a freshly opened document (clears selection and history). */
-  loadDocument(notes: { pitch: number; start: number; duration: number; velocity: number }[], bpm: number): void {
+  loadDocument(
+    notes: { pitch: number; start: number; duration: number; velocity: number }[],
+    bpm: number,
+    loop: LoopSettings = DEFAULT_LOOP,
+  ): void {
+    this.loop = { ...loop };
     this.notes = notes.map((n) => this.makeNote(n.pitch, n.start, n.duration, n.velocity));
     this.selection = new Set();
     this.undoStack = [];
@@ -83,6 +98,7 @@ export class Store {
     this.emit('notes');
     this.emit('bpm');
     this.emit('position');
+    this.emit('loop');
   }
 
   // --- undo ---
@@ -135,6 +151,14 @@ export class Store {
   setGrid(patch: Partial<GridSettings>): void {
     this.grid = { ...this.grid, ...patch };
     this.emit('grid');
+  }
+
+  /** Replaces the loop object (so saved-state comparisons by reference keep working). */
+  setLoop(patch: Partial<LoopSettings>): void {
+    const next = { ...this.loop, ...patch };
+    if (next.end - next.start < 1e-6) return;
+    this.loop = next;
+    this.emit('loop');
   }
 
   setKeyboard(patch: Partial<KeyboardSettings>): void {

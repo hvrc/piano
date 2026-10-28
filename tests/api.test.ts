@@ -101,6 +101,18 @@ test('libraries are isolated from each other', async () => {
   await call('DELETE', `/api/tracks/${id}`, libA);
 });
 
+test('stores the loop with the track', async () => {
+  const id = randomUUID();
+  const loop = { enabled: true, start: 4, end: 12 };
+  assert.equal((await call('PUT', `/api/tracks/${id}`, libA, track({ loop }))).status, 200);
+  const saved = (await call('GET', '/api/tracks', libA)).body.tracks.find((t: { id: string }) => t.id === id);
+  assert.deepEqual(saved.loop, loop);
+  for (const bad of [{ enabled: 'yes', start: 0, end: 4 }, { enabled: true, start: 4, end: 4 }, { enabled: true, start: -1, end: 4 }]) {
+    assert.equal((await call('PUT', `/api/tracks/${id}`, libA, track({ loop: bad }))).status, 400);
+  }
+  await call('DELETE', `/api/tracks/${id}`, libA);
+});
+
 test('rejects malformed tracks', async () => {
   const id = randomUUID();
   const bad = [

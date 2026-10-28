@@ -5,15 +5,17 @@
 //  - Draw mode (B): click/drag paints grid-length notes that follow the mouse pitch
 //    (hold Option to lock pitch); clicking a note erases it, dragging keeps erasing.
 //  - Keyboard: click/drag to audition; Shift-click selects every note of that key.
-//  - Ruler: upper strip scrubs the playhead; lower strip drag zooms (vertical) / scrolls (horizontal).
+//  - Ruler: top lane holds the loop brace (drag body to move, edges to resize, empty lane to draw a
+//    new loop, click to switch it on/off); middle strip scrubs the playhead; bottom strip drag
+//    zooms (vertical) / scrolls (horizontal).
 import { getAudioContext, unlockAudio } from '../audio/context';
 import type { Instrument, Voice } from '../audio/instrument';
 import { clampPitch, MAX_PITCH, MIN_PITCH, PITCH_COUNT } from '../music/pitch';
 import { DEFAULT_VELOCITY, noteEnd, type Note } from '../model/note';
 import type { Transport } from '../playback/transport';
-import { KEYS_W, regionAt, RULER_H, SCRUB_H } from '../render/layout';
+import { KEYS_W, LOOP_H, regionAt, RULER_H, SCRUB_H } from '../render/layout';
 import type { NoteZone, Overlay } from '../render/overlay';
-import type { Store } from '../state/store';
+import type { LoopSettings, Store } from '../state/store';
 import { EPS, gridStep, snapFloor, snapRound } from '../timeline/grid';
 import type { Viewport } from '../timeline/viewport';
 import { addNote, deleteNote } from './commands';
@@ -57,7 +59,10 @@ type Drag =
   | { kind: 'erase' }
   | { kind: 'scrub' }
   | { kind: 'rulerZoom'; last: Point; moved: boolean; origin: Point }
-  | { kind: 'key'; pitch: number };
+  | { kind: 'key'; pitch: number }
+  | { kind: 'loop'; mode: LoopZone; originBeat: number; originX: number; base: LoopSettings; moved: boolean };
+
+type LoopZone = 'start' | 'end' | 'move' | 'new';
 
 export class Editor {
   private drag: Drag | null = null;
@@ -183,7 +188,16 @@ export class Editor {
         this.downKeys(p);
         break;
       case 'ruler':
-        if (p.y < SCRUB_H) {
+        if (p.y < LOOP_H) {
+          this.drag = {
+            kind: 'loop',
+            mode: this.loopZone(p),
+            originBeat: this.beatAt(p),
+            originX: p.x,
+            base: this.store.loop,
+            moved: false,
+          };
+        } else if (p.y < LOOP_H + SCRUB_H) {
           this.drag = { kind: 'scrub' };
           this.scrubTo(p);
         } else {
@@ -336,6 +350,8 @@ export class Editor {
       }
       case 'scrub':
         return this.scrubTo(p);
+      case 'loop':
+        return this.dragLoop(d, p);
       case 'rulerZoom': {
         const dx = p.x - d.last.x;
         const dy = p.y - d.last.y;
@@ -499,6 +515,44 @@ export class Editor {
     );
   }
 
+  private loopZone(p: Point): LoopZone {
+    const { start, end } = this.store.loop;
+    const x = p.x - KEYS_W;
+    const x0 = this.vp.beatToX(start);
+    const x1 = this.vp.beatToX(end);
+    const edge = Math.min(6, (x1 - x0) / 3);
+    if (Math.abs(x - x0) <= edge) return 'start';
+    if (Math.abs(x - x1) <= edge) return 'end';
+    if (x > x0 && x < x1) return 'move';
+    return 'new';
+  }
+
+  private dragLoop(d: Extract<Drag, { kind: 'loop' }>, p: Point): void {
+    if (!d.moved && Math.abs(p.x - d.originX) < DRAG_THRESHOLD) return;
+    d.moved = true;
+    const step = this.snapping() ? this.step : 1 / 64;
+    const snap = (b: number) => Math.max(0, this.snapping() ? snapRound(b, step) : b);
+    const beat = this.beatAt(p);
+    const { base } = d;
+    switch (d.mode) {
+      case 'move': {
+        const len = base.end - base.start;
+        const start = snap(base.start + beat - d.originBeat);
+        return this.store.setLoop({ start, end: start + len });
+      }
+      case 'start':
+        return this.store.setLoop({ start: Math.min(snap(beat), base.end - step) });
+      case 'end':
+        return this.store.setLoop({ end: Math.max(snap(beat), base.start + step) });
+      case 'new': {
+        const a = snap(d.originBeat);
+        const b = snap(beat);
+        if (Math.abs(b - a) >= step - 1e-9) this.store.setLoop({ start: Math.min(a, b), end: Math.max(a, b), enabled: true });
+        return;
+      }
+    }
+  }
+
   private scrubTo(p: Point): void {
     let beat = Math.max(0, this.beatAt(p));
     if (this.snapping()) beat = snapRound(beat, this.step);
@@ -515,6 +569,8 @@ export class Editor {
       this.store.setSelection([d.selectOnlyOnClick]);
     }
     if (d?.kind === 'rulerZoom' && !d.moved) this.scrubTo(d.origin);
+    // Clicking the brace switches the loop on/off, as in Live.
+    if (d?.kind === 'loop' && !d.moved && d.mode !== 'new') this.store.setLoop({ enabled: !this.store.loop.enabled });
     this.overlay.marquee = null;
     this.cancelPreview();
     const p = this.local(e);
@@ -562,6 +618,7 @@ export class Editor {
       else if (d.kind === 'draw' || d.kind === 'erase') cursor = PENCIL_CURSOR;
       else if (d.kind === 'rulerZoom') cursor = 'zoom-in';
       else if (d.kind === 'scrub') cursor = 'col-resize';
+      else if (d.kind === 'loop') cursor = d.mode === 'move' ? 'grabbing' : d.mode === 'new' ? 'crosshair' : 'ew-resize';
     } else {
       const region = regionAt(p.x, p.y);
       if (region === 'grid') {
@@ -569,7 +626,10 @@ export class Editor {
         if (z === 'start' || z === 'end') cursor = 'ew-resize';
         else if (this.store.drawMode) cursor = PENCIL_CURSOR;
       } else if (region === 'ruler') {
-        cursor = p.y < SCRUB_H ? 'pointer' : 'zoom-in';
+        if (p.y < LOOP_H) {
+          const z = this.loopZone(p);
+          cursor = z === 'start' || z === 'end' ? 'ew-resize' : z === 'move' ? 'grab' : 'crosshair';
+        } else cursor = p.y < LOOP_H + SCRUB_H ? 'pointer' : 'zoom-in';
       } else if (region === 'keys') {
         cursor = 'pointer';
       }

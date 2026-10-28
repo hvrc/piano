@@ -27,7 +27,15 @@ function unpack(s: StoredTrack): Track {
   for (let i = 0; i + 3 < s.n.length; i += 4) {
     notes.push({ pitch: s.n[i], start: s.n[i + 1], duration: s.n[i + 2], velocity: s.n[i + 3] });
   }
-  return { id: s.id, name: s.name, bpm: s.bpm, notes, createdAt: s.createdAt, updatedAt: s.updatedAt };
+  return {
+    id: s.id,
+    name: s.name,
+    bpm: s.bpm,
+    notes,
+    ...(s.loop ? { loop: s.loop } : {}),
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+  };
 }
 
 const newestFirst = (a: Track, b: Track) => b.updatedAt - a.updatedAt;

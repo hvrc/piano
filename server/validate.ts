@@ -7,11 +7,18 @@ export interface NoteData {
   velocity: number;
 }
 
+export interface Loop {
+  enabled: boolean;
+  start: number;
+  end: number;
+}
+
 export interface Track {
   id: string;
   name: string;
   bpm: number;
   notes: NoteData[];
+  loop?: Loop;
   createdAt: number;
   updatedAt: number;
 }
@@ -48,7 +55,18 @@ export function parseTrack(id: string, body: unknown): Track {
     return { pitch: o.pitch as number, start: o.start as number, duration: o.duration as number, velocity: o.velocity as number };
   });
 
+  let loop: Loop | undefined;
+  if (b.loop !== undefined) {
+    const l = (b.loop ?? {}) as Record<string, unknown>;
+    const ok =
+      typeof l.enabled === 'boolean' &&
+      isNum(l.start) && l.start >= 0 && l.start <= MAX_BEAT &&
+      isNum(l.end) && l.end > l.start && l.end <= MAX_BEAT;
+    if (!ok) throw new ValidationError('loop is invalid.');
+    loop = { enabled: l.enabled as boolean, start: l.start as number, end: l.end as number };
+  }
+
   const now = Date.now();
   const createdAt = isNum(b.createdAt) && b.createdAt <= now + 60_000 ? b.createdAt : now;
-  return { id, name, bpm: b.bpm, notes, createdAt, updatedAt: now };
+  return { id, name, bpm: b.bpm, notes, ...(loop ? { loop } : {}), createdAt, updatedAt: now };
 }

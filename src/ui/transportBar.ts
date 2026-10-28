@@ -30,6 +30,7 @@ export function mountTransportBar(
   const status = $<HTMLSpanElement>('status');
   const help = $<HTMLButtonElement>('btn-help');
   const keys = $<HTMLButtonElement>('btn-keys');
+  const loop = $<HTMLButtonElement>('btn-loop');
   const keysInfo = $<HTMLSpanElement>('keys-info');
 
   // Buttons never take focus, so Space always means play/pause.
@@ -46,6 +47,7 @@ export function mountTransportBar(
     opts.onReturn();
   });
   draw.addEventListener('click', () => store.setDrawMode(!store.drawMode));
+  loop.addEventListener('click', () => store.setLoop({ enabled: !store.loop.enabled }));
   triplet.addEventListener('click', () => store.setGrid({ triplet: !store.grid.triplet }));
   snap.addEventListener('click', () => store.setGrid({ snap: !store.grid.snap }));
   help.addEventListener('click', opts.onHelp);
@@ -110,6 +112,7 @@ export function mountTransportBar(
     if (pos.textContent !== text) pos.textContent = text;
     if (document.activeElement !== bpm) bpm.value = fmtBpm(store.bpm);
     draw.classList.toggle('on', store.drawMode);
+    loop.classList.toggle('on', store.loop.enabled);
     grid.value = String(store.grid.division);
     triplet.classList.toggle('on', store.grid.triplet);
     snap.classList.toggle('on', store.grid.snap);

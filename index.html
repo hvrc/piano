@@ -32,6 +32,9 @@
           <svg class="i-play" viewBox="0 0 16 16"><path d="M4 2.5v11L13.5 8z" /></svg>
           <svg class="i-pause" viewBox="0 0 16 16"><rect x="3.5" y="3" width="3" height="10" /><rect x="9.5" y="3" width="3" height="10" /></svg>
         </button>
+        <button id="btn-loop" class="toggle icon" title="Loop (L) · ⌘L loops the selected notes" aria-label="Loop">
+          <svg viewBox="0 0 16 16"><path d="M4.5 4h6.2V2l3 3-3 3V6H4.5A1.5 1.5 0 0 0 3 7.5V9H1V7.5A3.5 3.5 0 0 1 4.5 4zm7 8H5.3v2l-3-3 3-3v2h6.2A1.5 1.5 0 0 0 13 8.5V7h2v1.5a3.5 3.5 0 0 1-3.5 3.5z" /></svg>
+        </button>
         <output id="pos" class="readout" title="Playback position (bar.beat.sixteenth)">1.1.1</output>
         <label class="tempo" title="Tempo: drag up/down, or click to type">
           <input id="bpm" inputmode="decimal" autocomplete="off" spellcheck="false" />
@@ -80,6 +83,9 @@
             <dt>Space</dt><dd>Play / pause</dd>
             <dt>Home</dt><dd>Return to start</dd>
             <dt>Click ruler</dt><dd>Move playhead (drag to scrub)</dd>
+            <dt>L / ⌘L</dt><dd>Loop on-off / loop selected notes</dd>
+            <dt>Loop brace</dt><dd>Drag to move, edges to resize, click to toggle</dd>
+            <dt>Drag top lane</dt><dd>Draw a new loop</dd>
             <dt>← →</dt><dd>Move playhead by grid (no selection)</dd>
             <dt>B</dt><dd>Toggle draw mode</dd>
             <dt>Double-click</dt><dd>Add note / delete note</dd>

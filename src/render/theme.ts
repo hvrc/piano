@@ -44,6 +44,14 @@ export const C = {
   keyboardRange: '#ffa21c',
 
   hint: 'rgba(20,24,26,0.5)',
+
+  loopLane: '#454d50',
+  loopOn: '#ffa21c',
+  loopOnEdge: '#ffd08a',
+  loopOff: '#7b8487',
+  loopOffEdge: '#a3abae',
+  outsideLoop: 'rgba(20,24,26,0.28)',
+  loopLine: 'rgba(255,162,28,0.55)',
 };
 
 export const FONT = '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif';

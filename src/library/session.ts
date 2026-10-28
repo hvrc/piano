@@ -3,7 +3,7 @@
 import { decodeMidi, encodeMidi, MidiParseError, type MidiNote } from '../midi/smf';
 import type { Note } from '../model/note';
 import type { Transport } from '../playback/transport';
-import type { Store } from '../state/store';
+import { DEFAULT_LOOP, type LoopSettings, type Store } from '../state/store';
 import { choose, alertError } from '../ui/dialog';
 import { deleteTrack, isLibraryKey, libraryKey, listTracks, putTrack, setLibraryKey, type TrackRecord } from './trackStore';
 
@@ -14,6 +14,7 @@ const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
 interface SavedState {
   notes: Note[];
   bpm: number;
+  loop: LoopSettings;
   name: string;
 }
 
@@ -32,7 +33,7 @@ export class Session {
     private onLoaded: () => void,
   ) {
     store.subscribe((k) => {
-      if (k === 'notes' || k === 'bpm') this.emit();
+      if (k === 'notes' || k === 'bpm' || k === 'loop') this.emit();
     });
     // A library link opened in a tab that's already on the app only changes the hash.
     window.addEventListener('hashchange', async () => {
@@ -57,7 +58,12 @@ export class Session {
   get dirty(): boolean {
     const s = this.store;
     if (!this.saved) return s.notes.length > 0;
-    return s.notes !== this.saved.notes || s.bpm !== this.saved.bpm || this.name !== this.saved.name;
+    return (
+      s.notes !== this.saved.notes ||
+      s.bpm !== this.saved.bpm ||
+      s.loop !== this.saved.loop ||
+      this.name !== this.saved.name
+    );
   }
 
   async init(): Promise<void> {
@@ -123,6 +129,7 @@ export class Session {
       name,
       bpm: this.store.bpm,
       notes: this.store.notes.map(toData),
+      loop: { ...this.store.loop },
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
@@ -134,7 +141,7 @@ export class Session {
     }
     this.trackId = id;
     this.name = name;
-    this.saved = { notes: this.store.notes, bpm: this.store.bpm, name };
+    this.saved = { notes: this.store.notes, bpm: this.store.bpm, loop: this.store.loop, name };
     this.tracks = [record, ...this.tracks.filter((t) => t.id !== id)];
     storageSet(LAST_TRACK_KEY, id);
     this.emit();
@@ -178,16 +185,16 @@ export class Session {
   }
 
   private load(track: TrackRecord): void {
-    this.replaceDocument(track.notes, track.bpm);
+    this.replaceDocument(track.notes, track.bpm, track.loop ?? DEFAULT_LOOP);
     this.trackId = track.id;
     this.name = track.name;
-    this.saved = { notes: this.store.notes, bpm: this.store.bpm, name: track.name };
+    this.saved = { notes: this.store.notes, bpm: this.store.bpm, loop: this.store.loop, name: track.name };
     this.emit();
   }
 
-  private replaceDocument(notes: MidiNote[], bpm: number): void {
+  private replaceDocument(notes: MidiNote[], bpm: number, loop: LoopSettings = DEFAULT_LOOP): void {
     this.transport.pause();
-    this.store.loadDocument(notes, bpm);
+    this.store.loadDocument(notes, bpm, loop);
     this.onLoaded();
   }
 

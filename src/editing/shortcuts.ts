@@ -66,6 +66,7 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
       }
       case 'z': if (e.shiftKey) store.redo(); else store.undo(); return true;
       case 'y': store.redo(); return true;
+      case 'l': loopSelection(store); return true;
     }
   }
 
@@ -87,6 +88,7 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
       if (store.playing) c.revealPlayhead();
       return true;
     case 'b': store.setDrawMode(!store.drawMode); return true;
+    case 'l': store.setLoop({ enabled: !store.loop.enabled }); return true;
     case 'Delete':
     case 'Backspace': cmd.deleteSelected(store); return true;
     case 'Escape': store.setSelection([]); c.toggleHelp(false); return true;
@@ -124,4 +126,17 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
     case 'PageDown': vp.scrollBy(0, vp.rowHeight * (e.shiftKey ? 1 : 12)); return true;
   }
   return false;
+}
+
+/** ⌘L: loop the selected notes (rounded out to the grid) and switch the loop on, as in Live. */
+function loopSelection(store: Store): void {
+  const sel = store.selectedNotes();
+  if (!sel.length) {
+    store.setLoop({ enabled: !store.loop.enabled });
+    return;
+  }
+  const step = gridStep(store.grid);
+  const start = Math.floor(Math.min(...sel.map((n) => n.start)) / step + 1e-6) * step;
+  const end = Math.ceil(Math.max(...sel.map(noteEnd)) / step - 1e-6) * step;
+  store.setLoop({ start, end: Math.max(end, start + step), enabled: true });
 }

@@ -4,10 +4,12 @@ import { isBlackKey, pitchName, MAX_PITCH, MIN_PITCH } from '../music/pitch';
 import type { Store } from '../state/store';
 import { BEATS_PER_BAR, gridStep, isMultiple } from '../timeline/grid';
 import type { Viewport } from '../timeline/viewport';
-import { KEYS_W, LABEL_W, RULER_H, SCRUB_H } from './layout';
+import { KEYS_W, LABEL_W, LOOP_H, RULER_H, SCRUB_H } from './layout';
 import type { Overlay } from './overlay';
 import { C, FONT, noteFill } from './theme';
 import { KEYBOARD_SPAN } from '../input/computerKeyboard';
+
+const RULER_H_BELOW_LOOP = RULER_H - LOOP_H;
 
 export class Renderer {
   private g: CanvasRenderingContext2D;
@@ -130,6 +132,18 @@ export class Renderer {
       if (bar % barEvery === 0) this.vline(vp.beatToX(bar * BEATS_PER_BAR), top, h, C.lineBar);
     }
 
+    // Live greys out everything outside an active loop.
+    const loop = this.store.loop;
+    if (loop.enabled) {
+      const lx = Math.round(vp.beatToX(loop.start));
+      const rx = Math.round(vp.beatToX(loop.end));
+      g.fillStyle = C.outsideLoop;
+      if (lx > 0) g.fillRect(0, top, lx, h);
+      if (rx < vp.width) g.fillRect(rx, top, vp.width - rx, h);
+      this.vline(lx, top, h, C.loopLine);
+      this.vline(rx, top, h, C.loopLine);
+    }
+
     g.restore();
   }
 
@@ -242,17 +256,19 @@ export class Renderer {
   private drawRuler(): void {
     const { g, vp, store } = this;
     this.clipTo(KEYS_W, 0, vp.width, RULER_H);
+    this.drawLoopLane();
+    g.translate(0, LOOP_H);
     g.fillStyle = C.ruler;
-    g.fillRect(0, 0, vp.width, RULER_H);
+    g.fillRect(0, 0, vp.width, RULER_H_BELOW_LOOP);
     g.fillStyle = C.scrub;
     g.fillRect(0, 0, vp.width, SCRUB_H);
     g.fillStyle = C.divider;
-    g.fillRect(0, RULER_H - 1, vp.width, 1);
+    g.fillRect(0, RULER_H_BELOW_LOOP - 1, vp.width, 1);
 
     const ppb = vp.pxPerBeat;
     const b0 = vp.xToBeat(0);
     const b1 = vp.xToBeat(vp.width);
-    const tickBase = RULER_H - 1;
+    const tickBase = RULER_H_BELOW_LOOP - 1;
 
     // Sub-beat & beat ticks
     const step = gridStep(store.grid);
@@ -276,7 +292,7 @@ export class Renderer {
       if (bar % tickEvery !== 0) continue;
       const x = vp.beatToX(bar * BEATS_PER_BAR);
       const labelled = bar % labelEvery === 0;
-      this.vline(x, labelled ? 3 : SCRUB_H, labelled ? RULER_H - 4 : RULER_H - SCRUB_H - 1, C.rulerTick);
+      this.vline(x, labelled ? 3 : SCRUB_H, labelled ? RULER_H_BELOW_LOOP - 4 : RULER_H_BELOW_LOOP - SCRUB_H - 1, C.rulerTick);
       if (labelled) {
         g.fillStyle = C.rulerText;
         g.fillText(String(bar + 1), Math.round(x) + 4, SCRUB_H / 2 + 1);
@@ -302,9 +318,27 @@ export class Renderer {
       g.lineTo(px + 0.5, SCRUB_H - 1);
       g.closePath();
       g.fill();
-      this.vline(px, SCRUB_H - 1, RULER_H - SCRUB_H, store.playing ? C.playhead : C.insertMarker);
+      this.vline(px, SCRUB_H - 1, RULER_H_BELOW_LOOP - SCRUB_H, store.playing ? C.playhead : C.insertMarker);
     }
     g.restore();
+  }
+
+  private drawLoopLane(): void {
+    const { g, vp } = this;
+    const loop = this.store.loop;
+    g.fillStyle = C.loopLane;
+    g.fillRect(0, 0, vp.width, LOOP_H);
+    const x0 = Math.round(vp.beatToX(loop.start));
+    const x1 = Math.round(vp.beatToX(loop.end));
+    if (x1 < 0 || x0 > vp.width) return;
+    const w = Math.max(4, x1 - x0);
+    // The brace: a bar with downward hooks at both ends, like Live's.
+    g.fillStyle = loop.enabled ? C.loopOn : C.loopOff;
+    g.fillRect(x0, 2, w, LOOP_H - 5);
+    g.fillRect(x0, 2, 2, LOOP_H - 2);
+    g.fillRect(x0 + w - 2, 2, 2, LOOP_H - 2);
+    g.fillStyle = loop.enabled ? C.loopOnEdge : C.loopOffEdge;
+    g.fillRect(x0, 2, w, 1);
   }
 
   // ---------------------------------------------------------------- keyboard

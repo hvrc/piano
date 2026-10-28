@@ -130,18 +130,34 @@ renderer.resize();
 vp.centerOnPitch(66); // middle C (C3) a little below centre
 
 // --- follow playback --------------------------------------------------------
-// Like Live's Follow: when the playhead runs off the right edge, flip to the next page.
-// If the user has scrolled away from the playhead, leave the view alone until it's back in sight.
+// Like Live 12's "Scroll" follow behaviour: once the playhead reaches the middle of the view it
+// stays there and the grid glides underneath. A loop that fits on screen is kept in view instead,
+// so the playhead cycles inside it. If the user scrolls the playhead out of sight, following
+// pauses until it is visible again.
+const FOLLOW_AT = 0.5; // fraction of the view width where the playhead settles
 let followArmed = true;
+let lastBeat = 0;
 
 function follow(beat: number): void {
+  const ppb = vp.pxPerBeat;
   const x = vp.beatToX(beat);
   const visible = x >= 0 && x <= vp.width;
-  if (followArmed && x > vp.width - 2) {
-    vp.scrollTo(beat * vp.pxPerBeat - 12, vp.scrollY);
+  const wrapped = beat < lastBeat - 1e-6;
+  lastBeat = beat;
+  if (visible) followArmed = true;
+  else if (!wrapped) followArmed = false; // the user scrolled away
+  if (!followArmed) return;
+
+  const loop = store.loop;
+  const inLoop = loop.enabled && beat >= loop.start && beat < loop.end;
+  if (inLoop && (loop.end - loop.start) * ppb <= vp.width * 0.9) {
+    if (vp.beatToX(loop.start) < 0 || vp.beatToX(loop.end) > vp.width) {
+      vp.scrollTo(loop.start * ppb - vp.width * 0.05, vp.scrollY);
+    }
     return;
   }
-  followArmed = visible;
+  const target = beat * ppb - vp.width * FOLLOW_AT;
+  if (target > vp.scrollX || (wrapped && !visible)) vp.scrollTo(target, vp.scrollY);
 }
 
 // --- frame loop -------------------------------------------------------------

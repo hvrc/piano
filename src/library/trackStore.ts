@@ -2,12 +2,14 @@
 // Each browser holds a random library key; the server only ever stores its hash.
 // Opening a library link (/#library=KEY) on another device shares the same library.
 import type { MidiNote } from '../midi/smf';
+import type { LoopSettings } from '../state/store';
 
 export interface TrackRecord {
   id: string;
   name: string;
   bpm: number;
   notes: MidiNote[];
+  loop?: LoopSettings;
   createdAt: number;
   updatedAt: number;
 }

@@ -29,6 +29,7 @@ Press `?` (or the ? button) in the app to see every shortcut.
 | Audition | Click or drag on the keyboard. ⇧-click a key selects all notes of that pitch |
 | Navigate | Scroll / ⇧-scroll; ⌘-scroll or pinch zooms time; ⌥-scroll zooms key height; `+`/`−`; PageUp/PageDown move an octave |
 | Ruler | Upper strip: click or drag to move the playhead. Lower strip: drag ↕ to zoom, ↔ to scroll, click to move the playhead |
+| Loop | Like Live's loop brace: the top lane of the ruler holds the brace. Drag its middle to move it, its ends to resize, or drag an empty part of the lane to draw a new loop. Click the brace, press `L`, or use the loop button to switch it on/off. `⌘L` loops the selected notes. With the loop on, playback jumps from the loop end back to its start (sample-accurate) and notes are cut at the loop end. The area outside the loop is dimmed. The loop is saved with the track |
 | Transport | Space plays/pauses (resumes from the paused position), Home returns to start, ←→ with nothing selected moves the playhead |
 
 | Computer keyboard | `M` (or the keyboard button) toggles it. `A W S E D F T G Y H U J K O L P ; '` play C up to the F an octave and a half above. `Z`/`X` shift the octave, `C`/`V` change velocity by 20. The orange bar beside the keys shows the playable range. It uses physical key positions, so it works on any keyboard layout |
@@ -37,7 +38,7 @@ Press `?` (or the ? button) in the app to see every shortcut.
 
 Octave naming follows Live: MIDI 60 = **C3**, full range C-2 (0) to G8 (127).
 
-Playback follows the playhead, flipping a page when it runs off the right edge, as Live's Follow does. If you scroll away while it's playing, the view stays put until the playhead is back in sight.
+Playback follows the playhead like Live 12's "Scroll" follow mode: once the playhead reaches the middle of the view it stays there and the grid scrolls smoothly underneath. A loop that fits on screen is kept in view instead, so the playhead cycles inside it. If you scroll the playhead out of sight, following pauses until it's visible again.
 
 ## Saved tracks and libraries
 
