@@ -396,15 +396,16 @@ body.sidebar-hidden .sidebar { display: none; }
 .library {
   flex: none;
   height: var(--vel-h); /* level with the velocity island */
-  padding: 0 12px 0 14px;
+  padding: 0 12px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 8px;
 }
 .library-title { font: 21px/1 var(--serif); color: var(--ink-soft); }
-.library-buttons { display: flex; gap: 6px; }
-.library-buttons button { flex: 1; }
+.library-buttons { display: flex; gap: 8px; }
+.library-buttons button { flex: 1 1 auto; padding: 0 10px; gap: 6px; font-size: 12px; } /* sized by label, spare room split evenly */
+.library-buttons .msr { font-size: 17px; }
 
 /* ------------------------------------------------------------ cards: help, dialogs, popover */
 
