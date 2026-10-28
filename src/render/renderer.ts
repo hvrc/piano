@@ -11,6 +11,7 @@ import type { Overlay } from './overlay';
 import { C, FONT, noteFill, paperGrain, SERIF } from './theme';
 
 const TICKS_H = SCRUB_H + BEAT_H; // ruler height below the loop lane
+const KEY_GLOW_FLOOR = 0.12; // a held note never fades out completely
 
 export class Renderer {
   private g: CanvasRenderingContext2D;
@@ -70,7 +71,7 @@ export class Renderer {
       this.drawNotes();
       this.drawGridOverlays();
       this.drawRuler();
-      this.drawKeys(this.activePitches());
+      this.drawKeys(this.keyGlow());
       this.drawCorner();
     });
     this.inPanel(layout.velocityTop, VEL_H, () => this.drawVelocity());
@@ -126,13 +127,32 @@ export class Renderer {
     return [bottom, top];
   }
 
-  private activePitches(): Set<number> {
-    const set = new Set([...this.overlay.pressedKeys, ...this.overlay.heldKeys]);
-    if (this.store.playing) {
-      const b = this.playheadBeat();
-      for (const n of this.store.notes) if (b >= n.start && b < noteEnd(n)) set.add(n.pitch);
+  /**
+   * How lit each key is (0–1). Keys you play by hand stay fully lit while held. During playback a
+   * key lights up when its note starts (louder = brighter) and then fades like the piano's sound,
+   * slower in the bass; striking the same note again lights it up fully again.
+   */
+  private keyGlow(): Map<number, number> {
+    const glow = new Map<number, number>();
+    for (const p of this.overlay.pressedKeys) glow.set(p, 1);
+    for (const p of this.overlay.heldKeys) glow.set(p, 1);
+    if (!this.store.playing) return glow;
+    const b = this.playheadBeat();
+    const secPerBeat = 60 / this.store.bpm;
+    const latest = new Map<number, { start: number; velocity: number }>(); // most recent onset per pitch
+    for (const n of this.store.notes) {
+      if (b < n.start || b >= noteEnd(n)) continue;
+      const cur = latest.get(n.pitch);
+      if (!cur || n.start > cur.start) latest.set(n.pitch, n);
     }
-    return set;
+    for (const [pitch, n] of latest) {
+      const elapsed = (b - n.start) * secPerBeat;
+      const decay = Math.max(0.4, Math.min(2.5, 1.2 * Math.pow(2, -(pitch - 60) / 24))); // seconds
+      const peak = 0.55 + 0.45 * (n.velocity / 127);
+      const level = Math.max(KEY_GLOW_FLOOR, peak * Math.exp(-elapsed / decay));
+      glow.set(pitch, Math.max(glow.get(pitch) ?? 0, level));
+    }
+    return glow;
   }
 
   /** Draw inside a clipped rectangle, optionally with its top-left as the origin. */
@@ -496,7 +516,7 @@ export class Renderer {
 
   // ---------------------------------------------------------------- keyboard
 
-  private drawKeys(active: Set<number>): void {
+  private drawKeys(glow: Map<number, number>): void {
     const { g, vp, overlay } = this;
     const rh = vp.rowHeight;
     this.clipped(0, RULER_H, KEYS_W, vp.height, () => {
@@ -515,11 +535,17 @@ export class Renderer {
         const y = vp.pitchToY(p);
         const black = isBlackKey(p);
         const hover = overlay.hoverPitch === p;
-        const lit = active.has(p);
-        g.fillStyle = lit
-          ? black ? C.keyActiveBlack : C.keyActive
-          : black ? (hover ? C.keyBlackHover : C.keyBlack) : hover ? C.keyWhiteHover : C.keyWhite;
+        const level = glow.get(p) ?? 0;
+        const lit = level > 0.5;
+        g.fillStyle = black ? (hover ? C.keyBlackHover : C.keyBlack) : hover ? C.keyWhiteHover : C.keyWhite;
         g.fillRect(0, y, kw, rh);
+        if (level > 0) {
+          // The played colour, faded by how much the note is still ringing.
+          g.globalAlpha = level;
+          g.fillStyle = black ? C.keyActiveBlack : C.keyActive;
+          g.fillRect(0, y, kw, rh);
+          g.globalAlpha = 1;
+        }
         if (p % 12 === 0 || p % 12 === 5) {
           g.fillStyle = C.keyWhiteLine;
           g.fillRect(0, y + rh - 1, kw, 1);
