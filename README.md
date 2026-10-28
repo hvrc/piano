@@ -83,7 +83,7 @@ src/
   audio/                  Instrument interface, sampled piano, synth fallback, shared voice pool, master bus
   midi/smf.ts             Standard MIDI File encoder/decoder
   library/session.ts      the open document: dirty tracking, save/open/new/import/export
-  library/trackStore.ts   tracks API client + library key
+  library/trackStore.ts   tracks API client (one public list)
   ui/                     top bar, file bar, sidebar, tools (Legato/Humanize), dialogs, `$` helper
   util/storage.ts         safe localStorage helpers
 server/
