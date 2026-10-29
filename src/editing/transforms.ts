@@ -34,6 +34,18 @@ export function humanize<T extends TimedNote>(
 }
 
 /**
+ * Live's Rev: play the notes backwards. Each note is mirrored within the span the notes cover
+ * (first start to last end), so the last note to end becomes the first to start. Pitches,
+ * lengths and velocities stay the same.
+ */
+export function reverse<T extends TimedNote>(notes: T[]): T[] {
+  if (!notes.length) return notes;
+  const from = Math.min(...notes.map((n) => n.start));
+  const to = Math.max(...notes.map((n) => n.start + n.duration));
+  return notes.map((n) => ({ ...n, start: from + to - (n.start + n.duration) }));
+}
+
+/**
  * Live's Legato: every note is stretched (or shortened) to end exactly where the next note
  * begins. Notes starting together (chords) all extend to the next start. The last note keeps
  * its length.

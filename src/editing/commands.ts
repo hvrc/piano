@@ -3,7 +3,7 @@ import { clampPitch, MAX_PITCH, MIN_PITCH } from '../music/pitch';
 import { clampVelocity, noteBounds, notesEnd, type Note } from '../model/note';
 import type { Store } from '../state/store';
 import { BEATS_PER_BAR, EPS, gridStep, snapCeil } from '../timeline/grid';
-import { humanize, legato, type HumanizeOptions } from './transforms';
+import { humanize, legato, reverse, type HumanizeOptions } from './transforms';
 
 let clipboard: Note[] = [];
 
@@ -95,6 +95,10 @@ export function humanizeNotes(store: Store, opts: HumanizeOptions): void {
 
 export function legatoNotes(store: Store): void {
   replaceTargets(store, legato);
+}
+
+export function reverseNotes(store: Store): void {
+  replaceTargets(store, reverse);
 }
 
 /** Add copies of `notes` shifted by `offset` beats, and select them. */

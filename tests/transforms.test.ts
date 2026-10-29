@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { humanize, legato } from '../src/editing/transforms.ts';
+import { humanize, legato, reverse } from '../src/editing/transforms.ts';
 
 // Deterministic pseudo-random sequence.
 function rng(seed = 1) {
@@ -57,4 +57,19 @@ test('legato stretches each note to the next start, chords together, last unchan
     legato(input).map((n) => n.duration),
     [1, 1, 1.5, 0.1],
   );
+});
+
+test('reverse mirrors notes within the span they cover', () => {
+  const input = [
+    { id: 1, start: 1, duration: 1, velocity: 90 },
+    { id: 2, start: 2, duration: 0.5, velocity: 80 },
+    { id: 3, start: 4, duration: 2, velocity: 70 },
+  ];
+  const out = reverse(input); // span 1..6
+  assert.deepEqual(out.map((n) => [n.id, n.start, n.duration, n.velocity]), [
+    [1, 5, 1, 90],
+    [2, 4.5, 0.5, 80],
+    [3, 1, 2, 70],
+  ]);
+  assert.deepEqual(reverse(out), input, 'reversing twice is the identity');
 });

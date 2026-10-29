@@ -1,4 +1,4 @@
-// Note tools in the top bar: Legato and Humanize (with its amount popover).
+// Note tools in the top bar: Legato, Reverse and Humanize (with its amount popover).
 import * as cmd from '../editing/commands';
 import type { HumanizeOptions } from '../editing/transforms';
 import type { Store } from '../state/store';
@@ -11,6 +11,7 @@ const STORAGE = 'piano:humanize';
 /** Returns a function that closes the Humanize popover (Escape is handled by the shortcuts). */
 export function mountTools(store: Store): () => void {
   $('btn-legato').addEventListener('click', () => cmd.legatoNotes(store));
+  $('btn-reverse').addEventListener('click', () => cmd.reverseNotes(store));
 
   const pop = $('humanize-pop');
   const timing = $<HTMLInputElement>('hum-timing');

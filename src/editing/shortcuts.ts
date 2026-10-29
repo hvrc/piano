@@ -66,6 +66,7 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
         if (e.shiftKey) cmd.legatoNotes(store);
         else loopSelection(store);
         return true;
+      case 'ArrowLeft': transport.seek(0); return true; // Macs have no Home key
       case 'ArrowUp': cmd.changeVelocity(store, 10); return true;
       case 'ArrowDown': cmd.changeVelocity(store, -10); return true;
     }
@@ -103,6 +104,7 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
       c.closePopovers();
       return true;
     case '?': c.toggleHelp(); return true;
+    case 'Enter': // Return goes to the start, as in Logic (Macs have no Home key)
     case 'Home': transport.seek(0); return true;
     case 'End': {
       transport.seek(notesEnd(store.notes));

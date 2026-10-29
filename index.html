@@ -13,7 +13,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.88em' font-size='88'%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,audio_file,chevron_right,clear_all,close,coffee,create_new_folder,delete,description,download,drive_file_move,edit,fiber_manual_record,fingerprint,folder,folder_open,footprint,keyboard_alt,mic,palette,pause,pet_supplies,piano,play_arrow,repeat,save,settings,side_navigation,skip_previous,stop,timer,upload&display=block" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,audio_file,chevron_right,clear_all,close,coffee,create_new_folder,delete,description,download,drive_file_move,edit,fiber_manual_record,fingerprint,folder,folder_open,footprint,keyboard_alt,mic,palette,pause,pet_supplies,piano,play_arrow,repeat,save,settings,side_navigation,skip_previous,stop,swap_horiz,timer,upload&display=block" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Bungee+Hairline&family=Ballet:opsz@16..72&display=swap" rel="stylesheet" />
   </head>
   <body>
@@ -31,7 +31,7 @@
         <button id="btn-save" class="icon" title="Save (⌘S)" aria-label="Save"><span class="msr" aria-hidden="true">save</span></button>
         </div>
         <div class="cluster">
-        <button id="btn-start" class="icon" title="Return to start (Home)" aria-label="Return to start">
+        <button id="btn-start" class="icon" title="Return to start (Return)" aria-label="Return to start">
           <span class="msr" aria-hidden="true">skip_previous</span>
         </button>
         <button id="btn-play" class="icon play" title="Play (Space)" aria-label="Play">
@@ -84,6 +84,7 @@
           </div>
         </div>
         <button id="btn-legato" class="icon" title="Legato (⇧⌘L): stretch each note to the start of the next. Uses the selection, or all notes." aria-label="Legato"><span class="msr" aria-hidden="true">clear_all</span></button>
+        <button id="btn-reverse" class="icon" title="Reverse: play the notes backwards. Uses the selection, or all notes." aria-label="Reverse"><span class="msr" aria-hidden="true">swap_horiz</span></button>
         <div class="pop-wrap">
           <button id="btn-humanize" class="icon" title="Humanize: nudge notes slightly earlier or later at random" aria-label="Humanize"><span class="msr" aria-hidden="true">fingerprint</span></button>
           <div id="humanize-pop" class="pop" hidden>
@@ -158,7 +159,7 @@
         <div class="cols">
           <dl>
             <dt>Space</dt><dd>Play / pause</dd>
-            <dt>Home</dt><dd>Return to start</dd>
+            <dt>Return · ⌘←</dt><dd>Return to start</dd>
             <dt>Click ruler</dt><dd>Move playhead (drag to scrub)</dd>
             <dt>L / ⌘L</dt><dd>Loop on-off / loop selected notes</dd>
             <dt>Loop brace</dt><dd>Drag to move, edges to resize, click to toggle</dd>
