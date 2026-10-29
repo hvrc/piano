@@ -13,6 +13,8 @@
   --island-radius: 0;
   --frame: url('/frames/paper.svg'); /* see scripts/frames.mjs */
   --card: url('/frames/paper-card.svg'); /* the frame with its paper filled in */
+  --control: url('/frames/paper-control.svg'); /* buttons & fields: a hairline, top-left corner notched */
+  --control-strong: url('/frames/paper-control-strong.svg');
   --gap: 8px; /* = PANEL_GAP in render/layout.ts */
   --sidebar-w: 268px;
   --on-ink: #f4efe2; /* text on an ink-filled button */
@@ -27,6 +29,8 @@
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2323201b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --cluster-gap: 8px; /* one even gap between every top-bar button (= --gap) */
   --edge: 10px; /* outer margin on every side of the page */
+  /* Cuts a control's fill to its notched top-left corner (radius 5, as in frames.mjs). */
+  --notch-mask: radial-gradient(circle at 0 0, transparent 5px, #000 5.5px);
   --frame-pad: 16px; /* content inset inside an ornamental frame: clears the corner scrolls */
   --teal: #4b9a95;
   --red: #c8412f;
@@ -61,6 +65,8 @@
   --island: transparent;
   --frame: url('/frames/espresso.svg');
   --card: url('/frames/espresso-card.svg');
+  --control: url('/frames/espresso-control.svg');
+  --control-strong: url('/frames/espresso-control-strong.svg');
   --teal: #6eaecd; /* steel blue */
   --red: #d9775f;
   --highlight: #c6a483; /* latte */
@@ -140,7 +146,10 @@ button {
   letter-spacing: -0.01em;
   color: var(--ink);
   background: var(--fill);
-  border: 1px solid var(--rule);
+  border: 1px solid transparent;
+  border-image: var(--control) 8 / 8px stretch;
+  -webkit-mask: var(--notch-mask);
+  mask: var(--notch-mask);
   border-radius: var(--radius);
   height: 30px;
   min-width: 30px;
@@ -211,7 +220,10 @@ select,
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: var(--fill);
-  border: 1px solid var(--rule);
+  border: 1px solid transparent;
+  border-image: var(--control) 8 / 8px stretch;
+  -webkit-mask: var(--notch-mask);
+  mask: var(--notch-mask);
   border-radius: var(--radius);
   height: 30px;
   outline: none;
@@ -222,7 +234,7 @@ select:hover,
 .doc input:hover { background: var(--fill-hover); }
 .tempo input:focus,
 select:focus-visible,
-.doc input:focus { background: var(--field-focus); border-color: var(--ink); }
+.doc input:focus { background: var(--field-focus); border-image-source: var(--control-strong); }
 
 .readout {
   display: inline-flex;
@@ -572,6 +584,9 @@ button.danger:hover { background: var(--danger-fill); }
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 .swatch:hover { background: var(--swatch); transform: scale(1.12); }
+.swatch,
+.track-main,
+.folder-main { border-image: none; -webkit-mask: none; mask: none; }
 .swatch.on { box-shadow: 0 0 0 2px var(--paper-card), 0 0 0 4px var(--ink); }
 .swatch.none { background: var(--fill); font: 400 12px/1 var(--ui); }
 .swatch.none:hover { background: var(--fill-hover); }

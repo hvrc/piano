@@ -49,4 +49,22 @@ for (const [theme, ink] of Object.entries(INKS)) {
   writeFileSync(`public/frames/${theme}.svg`, svg(ink));
   writeFileSync(`public/frames/${theme}-card.svg`, svg(ink, PAPERS[theme]));
 }
-console.log('wrote public/frames/{paper,espresso}{,-card}.svg');
+
+// Controls (buttons, fields): one hairline with only the top-left corner notched, a quiet echo
+// of the frames. 24px tile, 8px slices; `strong` is the focused ink.
+const CONTROL = {
+  paper: { rule: 'rgba(35,32,27,0.22)', strong: 'rgba(35,32,27,0.8)' },
+  espresso: { rule: 'rgba(237,231,223,0.16)', strong: 'rgba(237,231,223,0.7)' },
+};
+const C = 24;
+const n = 5; // notch radius
+const h = 0.5; // half the stroke, so the hairline sits inside the box
+const control = (ink) => `<svg xmlns="http://www.w3.org/2000/svg" width="${C}" height="${C}" viewBox="0 0 ${C} ${C}">
+<path d="M${h + n} ${h} H${C - h} V${C - h} H${h} V${h + n} A${n} ${n} 0 0 0 ${h + n} ${h} Z" fill="none" stroke="${ink}" stroke-width="1" />
+</svg>
+`;
+for (const [theme, { rule, strong }] of Object.entries(CONTROL)) {
+  writeFileSync(`public/frames/${theme}-control.svg`, control(rule));
+  writeFileSync(`public/frames/${theme}-control-strong.svg`, control(strong));
+}
+console.log('wrote public/frames/{paper,espresso}{,-card,-control,-control-strong}.svg');
