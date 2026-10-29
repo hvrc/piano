@@ -3,7 +3,7 @@ import { clampPitch, MAX_PITCH, MIN_PITCH } from '../music/pitch';
 import { clampVelocity, noteBounds, notesEnd, type Note } from '../model/note';
 import type { Store } from '../state/store';
 import { BEATS_PER_BAR, EPS, gridStep, snapCeil } from '../timeline/grid';
-import { humanize, legato, reverse, type HumanizeOptions } from './transforms';
+import { humanize, legato, quantize, reverse, type HumanizeOptions, type QuantizeOptions } from './transforms';
 
 let clipboard: Note[] = [];
 
@@ -91,6 +91,12 @@ export function paste(store: Store, at: number): number | null {
 
 export function humanizeNotes(store: Store, opts: HumanizeOptions): void {
   replaceTargets(store, (notes) => humanize(notes, store.bpm, opts));
+}
+
+/** Quantize to `step` beats, or to the current grid when `step` is 0. */
+export function quantizeNotes(store: Store, step: number, opts: QuantizeOptions): void {
+  const to = step || gridStep(store.grid);
+  replaceTargets(store, (notes) => quantize(notes, to, opts));
 }
 
 export function legatoNotes(store: Store): void {

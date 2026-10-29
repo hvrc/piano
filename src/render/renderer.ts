@@ -299,18 +299,6 @@ export class Renderer {
   }
 
   /** A dotted pen line, like the ledger rules on the reference paper. */
-  private dotted(x: number, y: number, h: number, color: string, gap = 2): void {
-    const g = this.g;
-    g.strokeStyle = color;
-    g.lineWidth = 1;
-    g.setLineDash([1, gap]);
-    g.beginPath();
-    g.moveTo(Math.round(x) + 0.5, y);
-    g.lineTo(Math.round(x) + 0.5, y + h);
-    g.stroke();
-    g.setLineDash([]);
-  }
-
   private paper(w: number, h: number, y = 0): void {
     if (!this.grain) return;
     this.g.fillStyle = this.grain;
@@ -404,9 +392,9 @@ export class Renderer {
       const step = gridStep(store.grid);
       // Lines fade as they crowd together when zoomed out (bars never fade below a third).
       const ppb = vp.pxPerBeat;
-      const unit = step * ppb >= 6 ? step : 1;
-      g.globalAlpha = crowdFade(unit * ppb, 6, 48, 0);
-      this.forGridLines(step, 6, (x, onBeat) => this.dotted(x, top, h, onBeat ? C.lineBeat : C.lineSub, onBeat ? 2 : 4));
+      const unit = step * ppb >= 5 ? step : 1;
+      g.globalAlpha = crowdFade(unit * ppb, 5, 14, 0);
+      this.forGridLines(step, 5, (x, onBeat) => this.vline(x, top, h, onBeat ? C.lineBeat : C.lineSub));
       g.globalAlpha = crowdFade(this.barSkip(8) * BEATS_PER_BAR * ppb, 16, 160, 0.35);
       this.forBars(this.barSkip(8), (x) => this.vline(x, top, h, C.lineBar));
       g.globalAlpha = 1;
@@ -453,11 +441,10 @@ export class Renderer {
         g.fillStyle =
           selected && !color ? (hovered ? C.noteSelectedHover : C.noteSelected) : noteFill(selected ? 127 : n.velocity, hovered, color);
         g.fill();
-        if (selected) {
-          g.strokeStyle = color ? C.noteSelected : C.noteSelectedOutline;
-          g.lineWidth = color ? 2 : 1;
-          g.stroke();
-        }
+        // Every note gets an edge, so overlapping and touching notes read as separate notes.
+        g.strokeStyle = selected ? (color ? C.noteSelected : C.noteSelectedOutline) : C.noteEdge;
+        g.lineWidth = selected && color ? 2 : 1;
+        g.stroke();
 
         // The pitch name, only when it fits inside the note.
         if (rh >= 12) {
@@ -652,6 +639,18 @@ export class Renderer {
           g.font = `11px ${FONT}`;
           g.fillText(String(n.velocity), x + 7, Math.max(top + 8, y));
         }
+      }
+
+      const ramp = overlay.velocityRamp;
+      if (ramp) {
+        g.strokeStyle = C.ghost;
+        g.lineWidth = 1.5;
+        g.setLineDash([4, 3]);
+        g.beginPath();
+        g.moveTo(vp.beatToX(ramp.b0), layout.velocityToY(ramp.v0));
+        g.lineTo(vp.beatToX(ramp.b1), layout.velocityToY(ramp.v1));
+        g.stroke();
+        g.setLineDash([]);
       }
 
       const px = this.playheadX();

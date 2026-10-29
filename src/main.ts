@@ -82,7 +82,15 @@ store.subscribe((kind) => {
   if (kind !== 'position' && kind !== 'playing') editor.refreshHover();
   invalidate();
 });
-transport.onJump = (beat) => follow.reveal(beat);
+transport.onJump = (beat) => {
+  if (prefs.value.follow) follow.reveal(beat);
+};
+// Switching Follow back on jumps to the playhead, as in Live.
+let following = prefs.value.follow;
+prefs.subscribe(() => {
+  if (prefs.value.follow && !following) follow.reveal();
+  following = prefs.value.follow;
+});
 
 /** After opening a track: back to the start, centred on its notes. */
 function showDocument(): void {
@@ -131,7 +139,7 @@ const bar = mountTransportBar(store, transport, {
 });
 const fileBar = mountFileBar(session, { onToggleSidebar: toggleSidebar });
 mountSidebar(session);
-const closeTools = mountTools(store);
+const tools = mountTools(store);
 const closeColors = mountColors(store);
 installShortcuts({
   previewSelection: () => editor.previewSelection(),
@@ -140,7 +148,7 @@ installShortcuts({
   vp,
   toggleHelp: settings.toggle,
   closePopovers: () => {
-    closeTools();
+    tools.close();
     closeColors();
   },
   keyboard,
@@ -148,6 +156,9 @@ installShortcuts({
     record: () => recorder.toggle(),
     metronome: () => prefs.set({ metronome: !prefs.value.metronome }),
     sustain: () => prefs.set({ sustain: !prefs.value.sustain }),
+    follow: () => prefs.set({ follow: !prefs.value.follow }),
+    quantize: () => tools.quantize(),
+    quantizeSettings: () => tools.openQuantize(),
     falling: () => store.setView(store.view === 'falling' ? 'roll' : 'falling'),
   },
   file: { save: (asCopy) => void session.save(asCopy), open: fileBar.openFilePicker },

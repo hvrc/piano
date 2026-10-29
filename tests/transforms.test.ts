@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { humanize, legato, reverse } from '../src/editing/transforms.ts';
+import { humanize, legato, quantize, reverse } from '../src/editing/transforms.ts';
 
 // Deterministic pseudo-random sequence.
 function rng(seed = 1) {
@@ -72,4 +72,24 @@ test('reverse mirrors notes within the span they cover', () => {
     [3, 1, 2, 70],
   ]);
   assert.deepEqual(reverse(out), input, 'reversing twice is the identity');
+});
+
+test('quantize pulls starts to the grid, optionally ends, by an amount', () => {
+  const n = (start: number, duration: number) => ({ start, duration, velocity: 100 });
+  const input = [n(0.1, 0.5), n(0.9, 0.2), n(2.3, 0.05)];
+  // Starts only: lengths kept.
+  assert.deepEqual(quantize(input, 0.5, { amount: 1, ends: false }).map((x) => [x.start, x.duration]), [
+    [0, 0.5],
+    [1, 0.2],
+    [2.5, 0.05],
+  ]);
+  // Half way.
+  const half = quantize(input, 0.5, { amount: 0.5, ends: false }).map((x) => x.start);
+  assert.ok(Math.abs(half[0] - 0.05) < 1e-9 && Math.abs(half[1] - 0.95) < 1e-9);
+  // Ends too: a note collapsing onto its start keeps one grid step.
+  assert.deepEqual(quantize(input, 0.5, { amount: 1, ends: true }).map((x) => [x.start, x.duration]), [
+    [0, 0.5],
+    [1, 0.5],
+    [2.5, 0.5],
+  ]);
 });

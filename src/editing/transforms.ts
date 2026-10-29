@@ -1,5 +1,6 @@
 // Pure note transforms (no app state), so they can be unit-tested directly in Node.
 import { clampVelocity, type NoteData } from '../model/note.ts';
+import { snapRound } from '../timeline/grid.ts';
 
 const EPS = 1e-9;
 
@@ -30,6 +31,25 @@ export function humanize<T extends TimedNote>(
     const start = Math.max(0, n.start + jitter(random) * maxBeats);
     const velocity = clampVelocity(n.velocity + jitter(random) * opts.velocity);
     return { ...n, start, velocity };
+  });
+}
+
+export interface QuantizeOptions {
+  amount: number; // 0..1: how far each note moves towards the grid (1 = all the way)
+  ends: boolean; // also quantize where notes end (otherwise lengths are kept)
+}
+
+/**
+ * Live's Quantize: pull note starts (and optionally ends) towards the nearest grid line by
+ * `amount`. A note whose quantized end would land on its start keeps one grid step of length.
+ */
+export function quantize<T extends TimedNote>(notes: T[], step: number, opts: QuantizeOptions): T[] {
+  const pull = (beat: number) => beat + (snapRound(beat, step) - beat) * opts.amount;
+  return notes.map((n) => {
+    const start = Math.max(0, pull(n.start));
+    if (!opts.ends) return { ...n, start };
+    const end = pull(n.start + n.duration);
+    return { ...n, start, duration: end - start > EPS ? end - start : step };
   });
 }
 

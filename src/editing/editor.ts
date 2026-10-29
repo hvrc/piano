@@ -6,7 +6,8 @@
 //    (hold Option to lock pitch); clicking a note erases it, dragging keeps erasing.
 //  - Boneless (snap off): nothing snaps; draw mode places notes exactly under the mouse.
 //  - Velocity lane: drag a stem up/down (selected stems move together); in draw mode, sweep
-//    across the lane to paint velocities.
+//    across the lane to paint velocities. Cmd-drag (or drag from empty lane) draws a straight
+//    ramp: notes under the line get velocities along it (the selection only, if there is one).
 //  - Keyboard (Live's note ruler): click to audition (drag up/down for a glissando); drag
 //    left/right to zoom key-track height; double-click to fit the notes (or the selection) to the
 //    view; Shift-click adds/removes every note of that key to/from the selection.
@@ -73,6 +74,7 @@ type Drag = DragBase &
     | { kind: 'drawFree'; currentId: number; lastStart: number; lockPitch: number }
     | { kind: 'velocity'; anchor: Note; ids: Set<number>; base: Note[] }
     | { kind: 'velocityPaint'; lastX: number }
+    | { kind: 'velocityRamp'; base: Note[]; ids: Set<number> | null }
     | { kind: 'erase' }
     | { kind: 'scrub' }
     | { kind: 'rulerZoom'; last: Point }
@@ -422,13 +424,21 @@ export class Editor {
 
   private downVelocity(p: Point): void {
     const { store } = this;
+    const stem = this.mods.meta ? null : this.stemAt(p);
+    if (this.mods.meta || (!store.drawMode && !stem)) {
+      const beat = this.beatAt(p);
+      const v = this.layout.yToVelocity(p.y);
+      this.overlay.velocityRamp = { b0: beat, v0: v, b1: beat, v1: v };
+      this.startDrag(p, { kind: 'velocityRamp', base: store.notes, ids: store.selection.size ? new Set(store.selection) : null });
+      return;
+    }
     if (store.drawMode) {
       store.checkpoint();
       this.startDrag(p, { kind: 'velocityPaint', lastX: p.x });
       this.paintVelocity(p.x, p.x, p.y);
       return;
     }
-    const n = this.stemAt(p);
+    const n = stem;
     if (!n) return;
     if (!store.selection.has(n.id)) store.setSelection(this.mods.shift ? [...store.selection, n.id] : [n.id]);
     this.overlay.velocityNote = n.id;
@@ -470,6 +480,8 @@ export class Editor {
         this.paintVelocity(d.lastX, p.x, p.y);
         d.lastX = p.x;
         return;
+      case 'velocityRamp':
+        return this.dragVelocityRamp(d, p);
       case 'erase': {
         const h = this.hit(p);
         if (h) this.store.removeNote(h.note.id);
@@ -580,6 +592,24 @@ export class Editor {
     // The grabbed stem follows the mouse; other selected notes move by the same amount.
     const delta = this.layout.yToVelocity(p.y) - d.anchor.velocity;
     this.store.setNotes(d.base.map((n) => (d.ids.has(n.id) ? { ...n, velocity: clampVelocity(n.velocity + delta) } : n)));
+  }
+
+  /** A straight velocity line from where the drag began: notes starting under it take its value. */
+  private dragVelocityRamp(d: DragOf<'velocityRamp'>, p: Point): void {
+    const ramp = this.overlay.velocityRamp;
+    if (!ramp || !this.begin(d, p)) return;
+    ramp.b1 = this.beatAt(p);
+    ramp.v1 = this.layout.yToVelocity(p.y);
+    const { b0, v0, b1, v1 } = ramp;
+    const lo = Math.min(b0, b1);
+    const hi = Math.max(b0, b1);
+    this.store.setNotes(
+      d.base.map((n) => {
+        if ((d.ids && !d.ids.has(n.id)) || n.start < lo || n.start > hi) return n;
+        const t = hi > lo ? (n.start - b0) / (b1 - b0) : 1;
+        return { ...n, velocity: clampVelocity(v0 + (v1 - v0) * t) };
+      }),
+    );
   }
 
   /** Draw-mode sweep: every note whose start lies between the last and current x gets this velocity. */
@@ -713,6 +743,7 @@ export class Editor {
       if (d.kind === 'loop' && d.mode !== 'new') this.store.setLoop({ enabled: !this.store.loop.enabled });
     }
     this.overlay.marquee = null;
+    this.overlay.velocityRamp = null;
     this.cancelPreview(true); // let a quick drag's note ring out instead of clipping it
     const p = this.local(e);
     this.hover(p);
@@ -761,6 +792,7 @@ export class Editor {
       case 'drawFree':
       case 'erase':
       case 'velocityPaint':
+      case 'velocityRamp':
         return PENCIL_CURSOR;
       case 'velocity':
         return 'ns-resize';
@@ -792,8 +824,8 @@ export class Editor {
       case 'beat':
         return 'zoom-in';
       case 'velocity':
-        if (this.store.drawMode) return PENCIL_CURSOR;
-        return this.overlay.velocityNote !== null ? 'ns-resize' : 'default';
+        if (this.store.drawMode || this.mods.meta) return PENCIL_CURSOR;
+        return this.overlay.velocityNote !== null ? 'ns-resize' : 'crosshair';
       default:
         return 'default';
     }

@@ -13,7 +13,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.88em' font-size='88'%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,audio_file,chevron_right,clear_all,close,coffee,create_new_folder,delete,description,download,drive_file_move,edit,fiber_manual_record,fingerprint,folder,folder_open,footprint,keyboard_alt,mic,palette,pause,pet_supplies,piano,play_arrow,repeat,save,settings,side_navigation,skip_previous,stop,swap_horiz,timer,upload&display=block" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,align_horizontal_left,audio_file,chevron_right,clear_all,close,coffee,create_new_folder,delete,description,download,drive_file_move,edit,fiber_manual_record,fingerprint,folder,folder_open,follow_the_signs,footprint,keyboard_alt,mic,palette,pause,pet_supplies,piano,play_arrow,repeat,save,settings,side_navigation,skip_previous,stop,swap_horiz,timer,upload&display=block" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Bungee+Hairline&family=Ballet:opsz@16..72&display=swap" rel="stylesheet" />
   </head>
   <body>
@@ -43,6 +43,9 @@
         </button>
         <button id="btn-loop" class="toggle icon" title="Loop (L) · ⌘L loops the selected notes" aria-label="Loop">
           <span class="msr" aria-hidden="true">repeat</span>
+        </button>
+        <button id="btn-follow" class="toggle icon" title="Follow (F): keep the playhead in view while playing. Off: scroll freely." aria-label="Follow playhead">
+          <span class="msr" aria-hidden="true">follow_the_signs</span>
         </button>
         <button id="btn-metronome" class="toggle icon" title="Metronome (O)" aria-label="Metronome">
           <span class="msr" aria-hidden="true">timer</span>
@@ -92,6 +95,16 @@
             <label>Velocity <input id="hum-velocity" type="range" min="0" max="40" step="1" /> <output id="hum-velocity-out"></output></label>
             <p>Works on the selected notes, or all notes if none are selected. Press again for another random nudge; ⌘Z undoes.</p>
             <button id="hum-apply" class="text primary">Humanize</button>
+          </div>
+        </div>
+        <div class="pop-wrap">
+          <button id="btn-quantize" class="icon" title="Quantize (⌘U): snap notes to the grid · ⇧⌘U settings" aria-label="Quantize"><span class="msr" aria-hidden="true">align_horizontal_left</span></button>
+          <div id="quantize-pop" class="pop" hidden>
+            <label>Grid <select id="qz-to"></select></label>
+            <label>Amount <input id="qz-amount" type="range" min="0" max="100" step="5" /> <output id="qz-amount-out"></output></label>
+            <label>Ends <input id="qz-ends" type="checkbox" /></label>
+            <p>Works on the selected notes, or all notes if none are selected. ⌘U quantizes again with these settings.</p>
+            <button id="qz-apply" class="text primary">Quantize</button>
           </div>
         </div>
         </div>
@@ -190,13 +203,16 @@
             <dt>3 / 4</dt><dd>Triplets / Boneless (no snapping) on-off</dd>
             <dt>⌘↑ ⌘↓</dt><dd>Velocity ±10 for selected notes</dd>
             <dt>Velocity lane</dt><dd>Drag stems; in draw mode, sweep to paint</dd>
+            <dt>⌘ drag velocity</dt><dd>Draw a velocity ramp (also: drag empty lane)</dd>
             <dt>⇧⌘L</dt><dd>Legato</dd>
+            <dt>⌘U / ⇧⌘U</dt><dd>Quantize / quantize settings</dd>
             <dt>⌘ scroll, pinch, + −</dt><dd>Zoom time</dd>
             <dt>⌥ scroll</dt><dd>Zoom key height</dd>
             <dt>Drag lower ruler</dt><dd>↕ zoom, ↔ scroll</dd>
             <dt>Drag keys ↔</dt><dd>Key height (right = taller)</dd>
             <dt>Double-click keys</dt><dd>Fit notes / selection</dd>
             <dt>R · O · S · V</dt><dd>Record · metronome · sustain · Synthesia mode</dd>
+            <dt>F</dt><dd>Follow playhead / scroll freely</dd>
             <dt>?</dt><dd>Settings</dd>
           </dl>
         </div>

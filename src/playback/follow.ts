@@ -1,9 +1,11 @@
 // Keeps the playhead in view during playback, like Live 12's "Scroll" follow behaviour: once the
 // playhead reaches the middle of the view it stays there and the grid glides underneath. A loop
 // that fits on screen is kept in view instead, so the playhead cycles inside it. If the user
-// scrolls the playhead out of sight, following pauses until it is visible again.
+// scrolls the playhead out of sight, following pauses until it is visible again. With Follow
+// switched off (the F key) the view stays wherever the user leaves it.
 import type { Store } from '../state/store';
 import type { Viewport } from '../timeline/viewport';
+import { prefs } from '../state/prefs';
 
 const FOLLOW_AT = 0.5; // fraction of the view width where the playhead settles
 
@@ -27,6 +29,7 @@ export class PlayheadFollow {
 
   /** Called every frame while playing. */
   tick(beat: number): void {
+    if (!prefs.value.follow) return;
     const { vp } = this;
     const ppb = vp.pxPerBeat;
     const x = vp.beatToX(beat);

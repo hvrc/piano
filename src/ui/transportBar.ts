@@ -29,6 +29,7 @@ export function mountTransportBar(
   const record = $<HTMLButtonElement>('btn-record');
   const metronome = $<HTMLButtonElement>('btn-metronome');
   const sustain = $<HTMLButtonElement>('btn-sustain');
+  const follow = $<HTMLButtonElement>('btn-follow');
   const falling = $<HTMLButtonElement>('btn-falling');
   const keys = $<HTMLButtonElement>('btn-keys');
   const loop = $<HTMLButtonElement>('btn-loop');
@@ -48,6 +49,7 @@ export function mountTransportBar(
   record.addEventListener('click', opts.onRecord);
   metronome.addEventListener('click', () => prefs.set({ metronome: !prefs.value.metronome }));
   sustain.addEventListener('click', () => prefs.set({ sustain: !prefs.value.sustain }));
+  follow.addEventListener('click', () => prefs.set({ follow: !prefs.value.follow }));
   falling.addEventListener('click', () => store.setView(store.view === 'falling' ? 'roll' : 'falling'));
   $('btn-transcribe').addEventListener('click', opts.onTranscribe);
   keys.addEventListener('click', opts.onKeys);
@@ -121,6 +123,7 @@ export function mountTransportBar(
     record.classList.toggle('on', store.recording);
     metronome.classList.toggle('on', prefs.value.metronome);
     sustain.classList.toggle('on', prefs.value.sustain);
+    follow.classList.toggle('on', prefs.value.follow);
     falling.classList.toggle('on', store.view === 'falling');
     const kb = store.keyboard;
     keys.classList.toggle('on', kb.enabled);
