@@ -456,7 +456,6 @@ body.sidebar-hidden .sidebar { display: none; }
 .side-empty[hidden] { display: none; }
 .library {
   flex: none;
-  border-top: 1px solid var(--rule);
   padding: 6px 6px 6px 18px; /* just the buttons' height; Ballet's title is free to spill over */
   display: flex;
   align-items: center;
