@@ -563,7 +563,8 @@ button.danger:hover { background: var(--danger-fill); }
 #btn-record.on { background: var(--red); color: var(--on-accent); }
 #btn-record.on .msr { animation: rec-pulse 1.2s ease-in-out infinite; }
 @keyframes rec-pulse { 50% { opacity: 0.45; } }
-#btn-metronome.on { background: var(--highlight); color: var(--on-highlight); }
+#btn-metronome.on,
+#btn-sustain.on { background: var(--highlight); color: var(--on-highlight); }
 #btn-falling.on { background: var(--teal); color: var(--on-accent); }
 
 .transcribe-card { width: min(600px, calc(100vw - 32px)); padding: 22px 26px 22px; }

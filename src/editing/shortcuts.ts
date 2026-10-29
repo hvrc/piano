@@ -14,7 +14,7 @@ export interface ShortcutContext {
   toggleHelp: (show?: boolean) => void;
   closePopovers: () => void;
   keyboard: ComputerKeyboard;
-  actions: { record: () => void; metronome: () => void; falling: () => void };
+  actions: { record: () => void; metronome: () => void; sustain: () => void; falling: () => void };
   file: { save: (asCopy: boolean) => void; open: () => void };
 }
 
@@ -92,6 +92,7 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
     case 'r':
     case 'F9': c.actions.record(); return true; // F9 is Live's record key
     case 'o': c.actions.metronome(); return true;
+    case 's': c.actions.sustain(); return true;
     case 'v': c.actions.falling(); return true;
     case 'Delete':
     case 'Backspace': cmd.deleteSelected(store); return true;

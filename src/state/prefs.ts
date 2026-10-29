@@ -6,10 +6,11 @@ export interface Prefs {
   noteColor: string | null; // default colour for uncoloured notes; null = the theme's
   metronome: boolean; // click on every beat while playing or recording
   midi: boolean; // connect MIDI keyboards automatically
+  sustain: boolean; // damper pedal held down: notes ring on after they end
 }
 
 const KEY = 'piano:prefs';
-const DEFAULTS: Prefs = { noteColor: null, metronome: false, midi: false };
+const DEFAULTS: Prefs = { noteColor: null, metronome: false, midi: false, sustain: false };
 
 class PrefsStore {
   value: Prefs;

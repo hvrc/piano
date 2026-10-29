@@ -48,6 +48,9 @@ const overlay = createOverlay();
 const ctx = getAudioContext();
 const bus = createMasterBus(ctx);
 const piano = new Piano(ctx, bus);
+const syncSustain = () => piano.setSustain(prefs.value.sustain, ctx.currentTime);
+prefs.subscribe(syncSustain);
+syncSustain();
 const transport = new Transport(store, piano);
 transport.metronome = {
   enabled: () => prefs.value.metronome,
@@ -143,6 +146,7 @@ installShortcuts({
   actions: {
     record: () => recorder.toggle(),
     metronome: () => prefs.set({ metronome: !prefs.value.metronome }),
+    sustain: () => prefs.set({ sustain: !prefs.value.sustain }),
     falling: () => store.setView(store.view === 'falling' ? 'roll' : 'falling'),
   },
   file: { save: (asCopy) => void session.save(asCopy), open: fileBar.openFilePicker },

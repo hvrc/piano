@@ -13,7 +13,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.88em' font-size='88'%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,audio_file,chevron_right,clear_all,close,coffee,create_new_folder,delete,description,download,drive_file_move,edit,fiber_manual_record,fingerprint,folder,folder_open,keyboard_alt,mic,palette,pause,pet_supplies,piano,play_arrow,repeat,save,settings,side_navigation,skip_previous,stop,timer,upload&display=block" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,audio_file,chevron_right,clear_all,close,coffee,create_new_folder,delete,description,download,drive_file_move,edit,fiber_manual_record,fingerprint,folder,folder_open,footprint,keyboard_alt,mic,palette,pause,pet_supplies,piano,play_arrow,repeat,save,settings,side_navigation,skip_previous,stop,timer,upload&display=block" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Bungee+Hairline&family=Ballet:opsz@16..72&display=swap" rel="stylesheet" />
   </head>
   <body>
@@ -46,6 +46,9 @@
         </button>
         <button id="btn-metronome" class="toggle icon" title="Metronome (O)" aria-label="Metronome">
           <span class="msr" aria-hidden="true">timer</span>
+        </button>
+        <button id="btn-sustain" class="toggle icon" title="Sustain (S): like holding the piano's pedal down — notes ring on after they end" aria-label="Sustain">
+          <span class="msr" aria-hidden="true">footprint</span>
         </button>
         <output id="pos" class="readout" title="Playback position (bar.beat.sixteenth)">1.1.1</output>
         <label class="tempo" title="Tempo in BPM: drag up/down, or click to type">
@@ -192,7 +195,7 @@
             <dt>Drag lower ruler</dt><dd>↕ zoom, ↔ scroll</dd>
             <dt>Drag keys ↔</dt><dd>Key height (right = taller)</dd>
             <dt>Double-click keys</dt><dd>Fit notes / selection</dd>
-            <dt>R · O · V</dt><dd>Record · metronome · Synthesia mode</dd>
+            <dt>R · O · S · V</dt><dd>Record · metronome · sustain · Synthesia mode</dd>
             <dt>?</dt><dd>Settings</dd>
           </dl>
         </div>

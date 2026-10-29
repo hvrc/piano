@@ -28,6 +28,7 @@ export function mountTransportBar(
   const status = $<HTMLSpanElement>('status');
   const record = $<HTMLButtonElement>('btn-record');
   const metronome = $<HTMLButtonElement>('btn-metronome');
+  const sustain = $<HTMLButtonElement>('btn-sustain');
   const falling = $<HTMLButtonElement>('btn-falling');
   const keys = $<HTMLButtonElement>('btn-keys');
   const loop = $<HTMLButtonElement>('btn-loop');
@@ -46,6 +47,7 @@ export function mountTransportBar(
   boneless.addEventListener('click', () => store.setGrid({ snap: !store.grid.snap }));
   record.addEventListener('click', opts.onRecord);
   metronome.addEventListener('click', () => prefs.set({ metronome: !prefs.value.metronome }));
+  sustain.addEventListener('click', () => prefs.set({ sustain: !prefs.value.sustain }));
   falling.addEventListener('click', () => store.setView(store.view === 'falling' ? 'roll' : 'falling'));
   $('btn-transcribe').addEventListener('click', opts.onTranscribe);
   keys.addEventListener('click', opts.onKeys);
@@ -118,6 +120,7 @@ export function mountTransportBar(
     boneless.classList.toggle('on', !store.grid.snap);
     record.classList.toggle('on', store.recording);
     metronome.classList.toggle('on', prefs.value.metronome);
+    sustain.classList.toggle('on', prefs.value.sustain);
     falling.classList.toggle('on', store.view === 'falling');
     const kb = store.keyboard;
     keys.classList.toggle('on', kb.enabled);
