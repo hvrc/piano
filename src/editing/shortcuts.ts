@@ -13,6 +13,8 @@ export interface ShortcutContext {
   vp: Viewport;
   toggleHelp: (show?: boolean) => void;
   closePopovers: () => void;
+  /** Sound the selected notes (after the arrow keys move them). */
+  previewSelection: () => void;
   keyboard: ComputerKeyboard;
   actions: { record: () => void; metronome: () => void; sustain: () => void; falling: () => void };
   file: { save: (asCopy: boolean) => void; open: () => void };
@@ -113,15 +115,20 @@ function handle(c: ShortcutContext, e: KeyboardEvent): boolean {
     case 'ArrowUp':
     case 'ArrowDown': {
       const dir = key === 'ArrowUp' ? 1 : -1;
-      if (hasSel) cmd.transposeSelected(store, dir * (e.shiftKey ? 12 : 1));
-      else vp.scrollBy(0, -dir * vp.rowHeight * (e.shiftKey ? 12 : 1));
+      if (hasSel) {
+        cmd.transposeSelected(store, dir * (e.shiftKey ? 12 : 1));
+        c.previewSelection();
+      } else vp.scrollBy(0, -dir * vp.rowHeight * (e.shiftKey ? 12 : 1));
       return true;
     }
     case 'ArrowLeft':
     case 'ArrowRight': {
       const dir = key === 'ArrowRight' ? 1 : -1;
       if (hasSel && e.shiftKey) cmd.resizeSelected(store, dir * step);
-      else if (hasSel) cmd.moveSelected(store, dir * step);
+      else if (hasSel) {
+        cmd.moveSelected(store, dir * step);
+        c.previewSelection();
+      }
       else {
         transport.seek(Math.max(0, snapRound(store.position, step) + dir * step));
       }

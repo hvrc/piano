@@ -134,6 +134,7 @@ mountSidebar(session);
 const closeTools = mountTools(store);
 const closeColors = mountColors(store);
 installShortcuts({
+  previewSelection: () => editor.previewSelection(),
   store,
   transport,
   vp,

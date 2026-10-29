@@ -30,6 +30,8 @@ const DOUBLE_CLICK_MS = 350;
 const EDGE_PX = 7;
 const AUTOSCROLL_MAX = 28; // px per frame
 const AUDITION_GAP_MS = 70; // minimum time between replays of the same note while dragging
+const AUDITION_RING = 0.4; // seconds a previewed note sounds at least, so a quick drag is still heard
+const CHORD_PREVIEW_MAX = 6; // notes heard when a selection moves with the arrow keys
 
 const PENCIL_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><path d='M3 17l1.2-4.2L13.6 3.4l3 3-9.4 9.4z' fill='white' stroke='black' stroke-width='1.2' stroke-linejoin='round'/><path d='M3 17l1.2-4.2 3 3z' fill='black'/></svg>",
@@ -88,7 +90,8 @@ export class Editor {
   private mods: Mods = { alt: false, meta: false, shift: false };
   private last: Point = { x: -1, y: -1 };
   private lastDown = { time: 0, x: 0, y: 0 };
-  private preview: { pitch: number; voice: Voice } | null = null;
+  private preview: { pitch: number; voice: Voice; at: number } | null = null;
+  private chord: Voice[] = [];
   private hoverZone: NoteZone | null = null;
   private lastAudition = 0;
 
@@ -228,13 +231,28 @@ export class Editor {
     if (retrigger && this.preview?.pitch === pitch && now - this.lastAudition < AUDITION_GAP_MS) return;
     this.lastAudition = now;
     this.cancelPreview();
-    this.preview = { pitch, voice: playNow(this.instrument, pitch, DEFAULT_VELOCITY) };
+    this.preview = { pitch, voice: playNow(this.instrument, pitch, DEFAULT_VELOCITY), at: getAudioContext().currentTime };
     this.overlay.pressedKeys = new Set([pitch]);
   }
 
-  private cancelPreview(): void {
+  /** Play the selected notes together (capped), e.g. after the arrow keys move them. */
+  previewSelection(): void {
+    const now = getAudioContext().currentTime;
+    for (const v of this.chord) v.release(now);
+    const pitches = [...new Set(this.store.selectedNotes().map((n) => n.pitch))].slice(0, CHORD_PREVIEW_MAX);
+    const velocity = Math.round(DEFAULT_VELOCITY / Math.sqrt(Math.max(1, pitches.length))); // a chord shouldn't be louder than a note
+    this.chord = pitches.map((p) => {
+      const v = playNow(this.instrument, p, velocity);
+      v.release(now + AUDITION_RING);
+      return v;
+    });
+  }
+
+  /** Stop the preview note; `ring` lets it sound at least AUDITION_RING seconds from its onset. */
+  private cancelPreview(ring = false): void {
     if (!this.preview) return;
-    this.preview.voice.release(getAudioContext().currentTime);
+    const now = getAudioContext().currentTime;
+    this.preview.voice.release(ring ? Math.max(now, this.preview.at + AUDITION_RING) : now);
     this.preview = null;
     this.overlay.pressedKeys = new Set();
     this.invalidate();
@@ -695,7 +713,7 @@ export class Editor {
       if (d.kind === 'loop' && d.mode !== 'new') this.store.setLoop({ enabled: !this.store.loop.enabled });
     }
     this.overlay.marquee = null;
-    this.cancelPreview();
+    this.cancelPreview(true); // let a quick drag's note ring out instead of clipping it
     const p = this.local(e);
     this.hover(p);
     this.updateCursor(p);
