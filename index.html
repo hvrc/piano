@@ -105,8 +105,8 @@
     </header>
 
     <div class="body">
-      <aside class="sidebar" aria-label="Tracks">
-        <div class="side-main island-panel">
+      <aside class="sidebar framed" aria-label="Tracks">
+        <div class="side-main">
           <div class="side-head">
             <span class="brand">piano <em>roll book</em></span>
             <div class="side-head-buttons">
@@ -117,7 +117,7 @@
           <ul id="track-list" class="track-list"></ul>
           <p id="track-empty" class="side-empty">No saved tracks yet.<br />Press ⌘S to save this roll — saved tracks are public.</p>
         </div>
-        <div class="library island-panel">
+        <div class="library">
           <span class="library-title">Midi files</span>
           <div class="library-buttons">
             <button id="btn-open" class="icon" title="Open a MIDI file (⌘O) — or drop one on the window" aria-label="Open MIDI file"><span class="msr" aria-hidden="true">upload</span></button>
@@ -126,7 +126,7 @@
           <input id="file-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
         </div>
       </aside>
-      <main class="roll"><canvas id="roll-canvas"></canvas></main>
+      <main class="roll framed"><div class="roll-inner"><canvas id="roll-canvas"></canvas></div></main>
     </div>
 
     <div id="help" class="help" hidden>

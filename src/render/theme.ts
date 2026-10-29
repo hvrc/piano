@@ -23,6 +23,8 @@ const RED_PEN = '#c8412f';
 const HIGHLIGHT = '#f3e48c';
 const GREEN = '#9cc46a';
 
+// The bands around the roll (ruler, loop lane, velocity lane) are left transparent: they are the
+// page's own paper, so nothing in the chrome differs in colour from the page.
 function paperPalette() {
   const ink = inkOf(PAPER_INK);
   return {
@@ -49,14 +51,14 @@ function paperPalette() {
     playhead: RED_PEN,
     insertMarker: 'rgba(200, 65, 47, 0.55)',
 
-    ruler: '#f0eadb',
-    scrub: PAPER,
+    ruler: 'transparent',
+    scrub: 'transparent',
     rulerText: ink(0.9),
     rulerTextDim: ink(0.45),
     rulerTick: ink(0.3),
     divider: ink(0.16), // soft hairlines between bands (matches --hairline in CSS)
 
-    labelColumn: '#efe8d7', // the velocity lane's left column
+    labelColumn: 'transparent', // the velocity lane's left column
     label: ink(0.75),
     labelHover: ink(1),
     keyNameOnDark: PAPER,
@@ -72,12 +74,12 @@ function paperPalette() {
 
     hint: ink(0.4),
 
-    velLane: '#f0eadb',
+    velLane: 'transparent',
     velGuide: ink(0.09),
     velLabel: ink(0.6),
     velValue: ink(1),
 
-    loopLane: '#ebe4d2',
+    loopLane: 'transparent',
     loopOn: TEAL,
     loopOnEdge: TEAL,
     loopOff: ink(0.35),
@@ -120,14 +122,14 @@ function espressoPalette(): Palette {
     playhead: HONEY,
     insertMarker: 'rgba(227, 182, 103, 0.55)',
 
-    ruler: '#211d19',
-    scrub: '#25211c',
+    ruler: 'transparent',
+    scrub: 'transparent',
     rulerText: ink(0.9),
     rulerTextDim: ink(0.45),
     rulerTick: ink(0.24),
     divider: ink(0.12),
 
-    labelColumn: '#211d19',
+    labelColumn: 'transparent',
     label: ink(0.7),
     labelHover: ink(1),
     keyNameOnDark: '#ede7df',
@@ -144,12 +146,12 @@ function espressoPalette(): Palette {
 
     hint: ink(0.35),
 
-    velLane: '#211d19',
+    velLane: 'transparent',
     velGuide: ink(0.06),
     velLabel: ink(0.55),
     velValue: ink(1),
 
-    loopLane: '#1b1814',
+    loopLane: 'transparent',
     loopOn: STEEL,
     loopOnEdge: STEEL,
     loopOff: ink(0.3),

@@ -9,10 +9,12 @@
   --ink-faint: rgba(35, 32, 27, 0.28);
   --rule: rgba(35, 32, 27, 0.16);
   --hairline: rgba(35, 32, 27, 0.16); /* soft dividers, never black (matches the canvas) */
-  --island: #ebe4d2; /* islands float on the page paper, a shade deeper */
-  --island-radius: 14px; /* = PANEL_RADIUS in render/layout.ts */
+  --island: transparent; /* panels are the page's own paper; their ornamental frames set them apart */
+  --island-radius: 0;
+  --frame: url('/frames/paper.svg'); /* see scripts/frames.mjs */
+  --card: url('/frames/paper-card.svg'); /* the frame with its paper filled in */
   --gap: 8px; /* = PANEL_GAP in render/layout.ts */
-  --sidebar-w: 248px;
+  --sidebar-w: 268px;
   --on-ink: #f4efe2; /* text on an ink-filled button */
   --ink-hover: #3a362e;
   --on-accent: #fff; /* text on teal / red fills */
@@ -25,6 +27,7 @@
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2323201b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --cluster-gap: 8px; /* one even gap between every top-bar button (= --gap) */
   --edge: 10px; /* outer margin on every side of the page */
+  --frame-pad: 16px; /* content inset inside an ornamental frame: clears the corner scrolls */
   --teal: #4b9a95;
   --red: #c8412f;
   --highlight: #f3e48c;
@@ -33,11 +36,11 @@
   --serif: 'Ballet', 'Iowan Old Style', Georgia, cursive; /* the handwriting face */
   /* Canvas band heights (render/layout.ts RULER_H, VEL_H), so sidebar rules line up with them. */
   --ruler-h: 46px;
-  --radius: 10px; /* iOS corner for 30px controls */
-  --fill: rgba(35, 32, 27, 0.075); /* like iOS tertiarySystemFill, in ink */
+  --radius: 0; /* square, pen-ruled controls */
+  --fill: transparent; /* controls are paper too: a ruled outline, no tint */
   --fill-hover: rgba(35, 32, 27, 0.12);
   --ui: 'Bungee Hairline', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; /* buttons & fields */
-  --radius-card: 16px;
+  --radius-card: 0;
   --vel-h: 76px;
   /* Paper grain: a fine turbulence wash over everything. */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .14 0 0 0 0 .12 0 0 0 0 .1 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -55,14 +58,15 @@
   --ink-faint: rgba(237, 231, 223, 0.3);
   --rule: rgba(237, 231, 223, 0.12);
   --hairline: rgba(237, 231, 223, 0.12);
-  --island: #25211c;
-  --panel: #25211c;
+  --island: transparent;
+  --frame: url('/frames/espresso.svg');
+  --card: url('/frames/espresso-card.svg');
   --teal: #6eaecd; /* steel blue */
   --red: #d9775f;
   --highlight: #c6a483; /* latte */
   --green: #9cc46a;
-  --fill: rgba(237, 231, 223, 0.08);
-  --fill-hover: rgba(237, 231, 223, 0.14);
+  --fill: transparent;
+  --fill-hover: rgba(237, 231, 223, 0.08);
   --on-ink: #191613;
   --ink-hover: #f2eee7;
   --on-accent: #191613;
@@ -136,7 +140,7 @@ button {
   letter-spacing: -0.01em;
   color: var(--ink);
   background: var(--fill);
-  border: none;
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
   height: 30px;
   min-width: 30px;
@@ -207,7 +211,7 @@ select,
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: var(--fill);
-  border: none;
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
   height: 30px;
   outline: none;
@@ -218,7 +222,7 @@ select:hover,
 .doc input:hover { background: var(--fill-hover); }
 .tempo input:focus,
 select:focus-visible,
-.doc input:focus { background: var(--field-focus); box-shadow: 0 0 0 2px var(--teal); }
+.doc input:focus { background: var(--field-focus); border-color: var(--ink); }
 
 .readout {
   display: inline-flex;
@@ -295,7 +299,22 @@ select {
 
 .body { flex: 1; display: flex; gap: var(--gap); min-height: 0; padding: var(--edge); }
 .roll { flex: 1; position: relative; min-width: 0; overflow: hidden; }
+.roll-inner { position: absolute; inset: var(--frame-pad); }
 .roll canvas { position: absolute; inset: 0; display: block; touch-action: none; }
+
+/* Ornamental frames (gothic book borders, scripts/frames.mjs): a 9-slice drawn over the edge of
+   the sidebar and the roll. Content keeps --frame-pad clear of it. Cards carry the same frame on
+   their own border (below), so it stays put when a card scrolls. */
+.framed { position: relative; }
+.framed::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 32px solid transparent;
+  border-image: var(--frame) 32 stretch;
+  pointer-events: none;
+  z-index: 2;
+}
 body.sidebar-hidden .sidebar { display: none; }
 
 /* ------------------------------------------------------------ sidebar: a ledger */
@@ -305,8 +324,9 @@ body.sidebar-hidden .sidebar { display: none; }
   width: var(--sidebar-w);
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
+  gap: 0;
   min-height: 0;
+  padding: var(--frame-pad);
 }
 .island-panel {
   background: var(--island) var(--grain);
@@ -337,7 +357,7 @@ body.sidebar-hidden .sidebar { display: none; }
   position: relative;
   display: flex;
   align-items: center;
-  border-radius: 10px;
+  border-radius: 0;
   counter-increment: row;
 }
 .track::before {
@@ -387,21 +407,21 @@ body.sidebar-hidden .sidebar { display: none; }
   white-space: nowrap;
 }
 .track-meta { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font: 400 11px var(--mono); color: var(--ink-soft); white-space: nowrap; }
-.track-actions { flex: none; display: none; gap: 3px; padding-right: 8px; }
+.track-actions { flex: none; display: none; gap: 2px; padding-right: 6px; }
 .track:hover .track-actions,
 .track-actions:has(.armed) { display: inline-flex; }
-.track-action { min-width: 28px; width: auto; height: 28px; padding: 0 8px; border-radius: 8px; background: var(--fill); }
+.track-action { min-width: 26px; width: auto; height: 26px; padding: 0 5px; border-radius: 0; background: var(--paper); }
 .track-action .msr { font-size: 16px; }
 /* Folders: a header row (drop target) with its tracks indented underneath. */
 .side-head-buttons { display: flex; gap: 6px; }
-.folder { border-radius: 10px; }
+.folder { border-radius: 0; }
 .folder.drop { background: var(--row-hover); box-shadow: inset 0 0 0 1px var(--ink-soft); }
-.track-list.drop { box-shadow: inset 0 0 0 1px var(--hairline); border-radius: 10px; }
-.folder-head { position: relative; display: flex; align-items: center; gap: 6px; min-height: 40px; padding-left: 8px; border-radius: 10px; }
+.track-list.drop { box-shadow: inset 0 0 0 1px var(--hairline); border-radius: 0; }
+.folder-head { position: relative; display: flex; align-items: center; gap: 6px; min-height: 40px; padding-left: 8px; border-radius: 0; }
 .folder-head:hover { background: var(--row-hover); }
 .folder-head > .msr { font-size: 18px; color: var(--ink-soft); }
 .folder-head:hover .track-actions { display: inline-flex; }
-.folder-main { flex: 1; min-width: 0; height: 40px; justify-content: flex-start; gap: 6px; padding: 0 8px 0 0; background: none; }
+.folder-main { flex: 1; min-width: 0; height: 40px; justify-content: flex-start; gap: 6px; padding: 0 8px 0 0; background: none; border: none; }
 .folder-main:hover { background: none; }
 .folder-main .msr { font-size: 18px; color: var(--ink-soft); transition: transform 0.15s; }
 .folder-main .msr:first-child { font-size: 16px; }
@@ -420,12 +440,12 @@ body.sidebar-hidden .sidebar { display: none; }
   z-index: 12;
   display: grid;
   gap: 4px;
-  min-width: 160px;
-  max-width: 220px;
-  padding: 8px;
-  background: var(--paper-card) var(--grain);
-  border: 0.5px solid var(--hairline);
-  border-radius: var(--radius-card);
+  min-width: 170px;
+  max-width: 230px;
+  padding: 4px;
+  background: none;
+  border: 16px solid transparent;
+  border-image: var(--card) 32 fill / 32px stretch;
 }
 .move-menu button { justify-content: flex-start; background: none; }
 .move-menu button:hover { background: var(--fill-hover); }
@@ -436,6 +456,7 @@ body.sidebar-hidden .sidebar { display: none; }
 .side-empty[hidden] { display: none; }
 .library {
   flex: none;
+  border-top: 1px solid var(--rule);
   padding: 6px 6px 6px 18px; /* just the buttons' height; Ballet's title is free to spill over */
   display: flex;
   align-items: center;
@@ -464,19 +485,19 @@ body.sidebar-hidden .sidebar { display: none; }
 .help-card,
 .dialog-card,
 .pop {
-  background: var(--paper-card) var(--grain);
-  border: 0.5px solid var(--hairline);
-  border-radius: var(--radius-card);
+  background: none;
+  border: 16px solid transparent;
+  border-image: var(--card) 32 fill / 32px stretch;
 }
 
-.help-card { padding: 20px 24px 22px; max-width: calc(100vw - 32px); }
+.help-card { padding: 14px 18px 14px; max-width: calc(100vw - 32px); }
 .help h2 { margin: 0 0 16px; font: 36px/1.1 var(--serif); }
 .cols { display: flex; gap: 36px; flex-wrap: wrap; }
 dl { display: grid; grid-template-columns: auto auto; gap: 7px 18px; margin: 0; }
 dt { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
 dd { margin: 0; color: var(--ink-soft); }
 
-.dialog-card { width: min(420px, calc(100vw - 32px)); padding: 20px 22px 18px; }
+.dialog-card { width: min(420px, calc(100vw - 32px)); padding: 14px 16px 12px; }
 .dialog-card h2 { margin: 0 0 10px; font: 28px/1.2 var(--serif); }
 .dialog-card p { margin: 0 0 18px; font-size: 12px; line-height: 1.6; color: var(--ink-soft); user-select: text; }
 .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
@@ -492,8 +513,8 @@ button.danger:hover { background: var(--danger-fill); }
   top: calc(100% + 10px);
   right: 0;
   z-index: 15;
-  width: 264px;
-  padding: 14px 16px;
+  width: 276px;
+  padding: 8px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
@@ -505,26 +526,26 @@ button.danger:hover { background: var(--danger-fill); }
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 4px;
-  border-radius: 999px;
+  height: 1px;
+  border-radius: 0;
   border: none;
-  background: var(--fill-hover);
+  background: var(--ink-faint);
 }
 .pop input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 0.5px solid var(--hairline);
-  background: var(--thumb);
+  width: 12px;
+  height: 20px;
+  border-radius: 0;
+  border: 1px solid var(--ink);
+  background: var(--paper);
   cursor: grab;
 }
 .pop input[type='range']::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 0.5px solid var(--hairline);
-  background: var(--thumb);
+  width: 12px;
+  height: 20px;
+  border-radius: 0;
+  border: 1px solid var(--ink);
+  background: var(--paper);
 }
 .pop output { font: 400 12px var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
 .pop p { margin: 0; font-size: 10px; line-height: 1.55; color: var(--ink-soft); }
@@ -555,7 +576,7 @@ button.danger:hover { background: var(--danger-fill); }
 .swatch.on { box-shadow: 0 0 0 2px var(--paper-card), 0 0 0 4px var(--ink); }
 .swatch.none { background: var(--fill); font: 400 12px/1 var(--ui); }
 .swatch.none:hover { background: var(--fill-hover); }
-.color-pop { width: 222px; }
+.color-pop { width: 238px; }
 .color-pop .swatches { display: grid; grid-template-columns: repeat(5, 30px); gap: 8px; }
 .color-pop .swatch { width: 30px; height: 30px; }
 .color-pop p { margin: 0; }
@@ -567,7 +588,7 @@ button.danger:hover { background: var(--danger-fill); }
 #btn-sustain.on { background: var(--highlight); color: var(--on-highlight); }
 #btn-falling.on { background: var(--teal); color: var(--on-accent); }
 
-.transcribe-card { width: min(600px, calc(100vw - 32px)); padding: 22px 26px 22px; }
+.transcribe-card { width: min(600px, calc(100vw - 32px)); padding: 14px 18px 12px; }
 .dialog-buttons { flex-wrap: wrap; }
 .dialog-buttons button { white-space: nowrap; flex: none; }
 .transcribe-status { min-height: 18px; margin: -6px 0 16px; font: 400 12px/1.5 var(--mono); color: var(--red); }

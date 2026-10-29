@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="96" height="96" viewBox="0 0 96 96">
+<path d="M13 2 H83 A11 11 0 0 0 94 13 V83 A11 11 0 0 0 83 94 H13 A11 11 0 0 0 2 83 V13 A11 11 0 0 0 13 2 Z" fill="#191613" />
+<defs><g id="c" fill="none" stroke="rgba(237,231,223,0.55)" stroke-width="0.9" stroke-linecap="round">
+  <path d="M13 2 A11 11 0 0 1 2 13" />
+  <path d="M25 6 C19 6 15.5 8.6 15.5 12.2 C15.5 15.3 18.6 16.4 20.2 14.6 C21.4 13.2 20.4 11.4 18.8 11.8" />
+  <path d="M6 25 C6 19 8.6 15.5 12.2 15.5 C15.3 15.5 16.4 18.6 14.6 20.2 C13.2 21.4 11.4 20.4 11.8 18.8" />
+  <circle cx="12.4" cy="12.4" r="1.15" stroke="none" fill="rgba(237,231,223,0.55)" />
+</g></defs>
+<g fill="none" stroke="rgba(237,231,223,0.55)" stroke-linecap="round">
+  <path d="M13 2 H83 M2 13 V83 M83 94 H13 M94 83 V13" stroke-width="1.1" />
+  <path d="M25 6 H71 M6 25 V71 M71 90 H25 M90 71 V25" stroke-width="0.6" />
+</g>
+<use xlink:href="#c" />
+<use xlink:href="#c" transform="translate(96 0) scale(-1 1)" />
+<use xlink:href="#c" transform="translate(0 96) scale(1 -1)" />
+<use xlink:href="#c" transform="translate(96 96) scale(-1 -1)" />
+</svg>

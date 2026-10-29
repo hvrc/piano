@@ -5,10 +5,10 @@
 //   │        ├ scrub strip (bar numbers)       │  RULER_H
 //   │        ├ beat strip (ticks, drag = zoom) │
 //   ├ keys   ┼ grid (notes) ───────────────────┤
-//   ╰────────┴─────────────────────────────────╯
-//     (PANEL_GAP of paper)                          the two panels have rounded corners
-//   ╭ corner ┬ velocity lane ──────────────────╮  VEL_H
-//   ╰────────┴─────────────────────────────────╯
+//   └────────┴─────────────────────────────────┘
+//     (PANEL_GAP of paper)                          two square panels
+//   ┌ corner ┬ velocity lane ──────────────────┐  VEL_H
+//   └────────┴─────────────────────────────────┘
 //    KEYS_W = the piano keys (note names are written on them)
 import { clampVelocity } from '../model/note';
 
@@ -19,7 +19,7 @@ export const BEAT_H = 16;
 export const RULER_H = LOOP_H + SCRUB_H + BEAT_H;
 export const VEL_H = 76;
 export const PANEL_GAP = 8; // paper between the roll and the velocity lane
-export const PANEL_RADIUS = 14;
+export const PANEL_RADIUS = 0; // square: the roll sits inside an ornamental frame (styles.css)
 const VEL_PAD_TOP = 9;
 const VEL_PAD_BOTTOM = 6;
 

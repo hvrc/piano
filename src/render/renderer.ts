@@ -67,7 +67,7 @@ export class Renderer {
   render(): void {
     const { g, layout } = this;
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    // Two rounded panels (the roll, and the velocity lane) on a transparent canvas.
+    // Two square panels (the roll, and the velocity lane) on a transparent canvas.
     g.clearRect(0, 0, layout.width, layout.height);
     if (this.store.view === 'falling') {
       this.inPanel(0, layout.height, () => this.drawFalling(this.keyGlow()));
@@ -76,8 +76,8 @@ export class Renderer {
     this.collectVisible();
 
     this.inPanel(0, layout.rollHeight, () => {
-      g.fillStyle = C.bg;
-      g.fillRect(0, 0, layout.width, layout.rollHeight);
+      g.fillStyle = C.bg; // outside the pitch range; the ruler above stays the page's paper
+      g.fillRect(0, RULER_H, layout.width, layout.rollHeight - RULER_H);
       this.drawGrid();
       this.drawNotes();
       this.drawGridOverlays();
@@ -527,7 +527,6 @@ export class Renderer {
       g.fillRect(0, 0, vp.width, TICKS_H);
       g.fillStyle = C.scrub;
       g.fillRect(0, 0, vp.width, SCRUB_H);
-      this.paper(vp.width, TICKS_H);
       g.fillStyle = C.divider;
       g.fillRect(0, TICKS_H - 1, vp.width, 1);
 
@@ -613,7 +612,6 @@ export class Renderer {
       g.translate(KEYS_W, 0);
       g.fillStyle = C.velLane;
       g.fillRect(0, top, vp.width, VEL_H);
-      this.paper(vp.width, VEL_H, top);
       g.strokeStyle = C.velGuide;
       g.setLineDash([1, 3]);
       for (const v of [22, 72, 118]) {
