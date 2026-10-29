@@ -13,7 +13,7 @@
   --island-radius: 0;
   --frame: url('/frames/paper.svg'); /* see scripts/frames.mjs */
   --card: url('/frames/paper-card.svg'); /* the frame with its paper filled in */
-  --control: url('/frames/paper-control.svg'); /* buttons & fields: a hairline, top-left corner notched */
+  --control: url('/frames/paper-control.svg'); /* buttons & fields: a hairline, bottom-left corner notched */
   --control-strong: url('/frames/paper-control-strong.svg');
   --gap: 8px; /* = PANEL_GAP in render/layout.ts */
   --sidebar-w: 268px;
@@ -29,8 +29,8 @@
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2323201b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --cluster-gap: 8px; /* one even gap between every top-bar button (= --gap) */
   --edge: 10px; /* outer margin on every side of the page */
-  /* Cuts a control's fill to its notched top-left corner (radius 5, as in frames.mjs). */
-  --notch-mask: radial-gradient(circle at 0 0, transparent 5px, #000 5.5px);
+  /* Cuts a control's fill to its notched bottom-left corner (radius 5, as in frames.mjs). */
+  --notch-mask: radial-gradient(circle at 0 100%, transparent 5px, #000 5.5px);
   --frame-pad: 16px; /* content inset inside an ornamental frame: clears the corner scrolls */
   --teal: #4b9a95;
   --red: #c8412f;
